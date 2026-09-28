@@ -5,6 +5,7 @@ package server_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"math"
@@ -28,6 +29,8 @@ import (
 
 func TestAPIContracts(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	defaultCodexProbeTemplateJSON, err := json.Marshal(service.DefaultCodexProbeTemplate())
+	require.NoError(t, err)
 
 	tests := []struct {
 		name       string
@@ -863,7 +866,7 @@ func TestAPIContracts(t *testing.T) {
 					"force_email_on_third_party_signup": false,
 					"default_concurrency": 5,
 					"default_balance": 1.25,
-					"default_platform_quotas": {"anthropic":{"daily":null,"weekly":null,"monthly":null},"antigravity":{"daily":null,"weekly":null,"monthly":null},"deepseek":{"daily":null,"weekly":null,"monthly":null},"gemini":{"daily":null,"weekly":null,"monthly":null},"grok":{"daily":null,"weekly":null,"monthly":null},"kimi":{"daily":null,"weekly":null,"monthly":null},"minimax":{"daily":null,"weekly":null,"monthly":null},"openai":{"daily":null,"weekly":null,"monthly":null},"opencode_go":{"daily":null,"weekly":null,"monthly":null},"zhipu":{"daily":null,"weekly":null,"monthly":null}},
+					"default_platform_quotas": {"anthropic":{"daily":null,"weekly":null,"monthly":null},"antigravity":{"daily":null,"weekly":null,"monthly":null},"deepseek":{"daily":null,"weekly":null,"monthly":null},"gemini":{"daily":null,"weekly":null,"monthly":null},"grok":{"daily":null,"weekly":null,"monthly":null},"kimi":{"daily":null,"weekly":null,"monthly":null},"minimax":{"daily":null,"weekly":null,"monthly":null},"openai":{"daily":null,"weekly":null,"monthly":null},"openai_bps":{"daily":null,"weekly":null,"monthly":null},"opencode_go":{"daily":null,"weekly":null,"monthly":null},"zhipu":{"daily":null,"weekly":null,"monthly":null}},
 					"auth_source_default_email_platform_quotas": null,
 					"auth_source_default_github_platform_quotas": null,
 					"auth_source_default_google_platform_quotas": null,
@@ -898,6 +901,9 @@ func TestAPIContracts(t *testing.T) {
 					"min_claude_code_version": "",
 					"max_claude_code_version": "",
 					"openai_codex_ticket_enabled": false,
+					"openai_codex_ticket_allow_without_ticket": true,
+					"openai_codex_ticket_prompt_template": ` + string(defaultCodexProbeTemplateJSON) + `,
+					"openai_codex_ticket_prompt_template_default": ` + string(defaultCodexProbeTemplateJSON) + `,
 					"openai_codex_ticket_harvest_proxy_url": "",
 					"openai_codex_ticket_harvest_proxy_configured": false,
 					"min_codex_version": "",
@@ -1188,7 +1194,7 @@ func TestAPIContracts(t *testing.T) {
 					"purchase_subscription_url": "",
 					"table_default_page_size": 20,
 					"table_page_size_options": [10, 20, 50],
-					"default_platform_quotas": {"anthropic":{"daily":null,"weekly":null,"monthly":null},"antigravity":{"daily":null,"weekly":null,"monthly":null},"deepseek":{"daily":null,"weekly":null,"monthly":null},"gemini":{"daily":null,"weekly":null,"monthly":null},"grok":{"daily":null,"weekly":null,"monthly":null},"kimi":{"daily":null,"weekly":null,"monthly":null},"minimax":{"daily":null,"weekly":null,"monthly":null},"openai":{"daily":null,"weekly":null,"monthly":null},"opencode_go":{"daily":null,"weekly":null,"monthly":null},"zhipu":{"daily":null,"weekly":null,"monthly":null}},
+					"default_platform_quotas": {"anthropic":{"daily":null,"weekly":null,"monthly":null},"antigravity":{"daily":null,"weekly":null,"monthly":null},"deepseek":{"daily":null,"weekly":null,"monthly":null},"gemini":{"daily":null,"weekly":null,"monthly":null},"grok":{"daily":null,"weekly":null,"monthly":null},"kimi":{"daily":null,"weekly":null,"monthly":null},"minimax":{"daily":null,"weekly":null,"monthly":null},"openai":{"daily":null,"weekly":null,"monthly":null},"openai_bps":{"daily":null,"weekly":null,"monthly":null},"opencode_go":{"daily":null,"weekly":null,"monthly":null},"zhipu":{"daily":null,"weekly":null,"monthly":null}},
 					"auth_source_default_email_platform_quotas": null,
 					"auth_source_default_github_platform_quotas": null,
 					"auth_source_default_google_platform_quotas": null,
@@ -1233,6 +1239,9 @@ func TestAPIContracts(t *testing.T) {
 					"enable_client_dateline_normalization": true,
 					"antigravity_user_agent_version": "",
 					"openai_codex_ticket_enabled": false,
+					"openai_codex_ticket_allow_without_ticket": true,
+					"openai_codex_ticket_prompt_template": ` + string(defaultCodexProbeTemplateJSON) + `,
+					"openai_codex_ticket_prompt_template_default": ` + string(defaultCodexProbeTemplateJSON) + `,
 					"openai_codex_ticket_harvest_proxy_url": "",
 					"openai_codex_ticket_harvest_proxy_configured": false,
 					"min_codex_version": "",

@@ -7,8 +7,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MACOS-DO/sub4api/internal/pkg/logger"
 	"github.com/gin-gonic/gin"
@@ -38,33 +40,32 @@ func localeTestBody(texts []string, kinds []string) []byte {
 
 func TestOpenAIRequestTimezoneCatalogAndValidation(t *testing.T) {
 	options := OpenAIRequestTimezoneOptions()
-	require.ElementsMatch(t, []string{
-		"Africa/Cairo", "Africa/Johannesburg",
-		"America/Argentina/Buenos_Aires", "America/Chicago", "America/Denver",
-		"America/Los_Angeles", "America/Mexico_City", "America/New_York",
-		"America/Sao_Paulo", "America/Toronto", "America/Vancouver",
-		"Asia/Bangkok", "Asia/Dubai", "Asia/Ho_Chi_Minh", "Asia/Jakarta",
-		"Asia/Kolkata", "Asia/Kuala_Lumpur", "Asia/Manila", "Asia/Seoul",
-		"Asia/Singapore", "Asia/Tokyo", "Australia/Perth", "Australia/Sydney",
-		"Europe/Berlin", "Europe/Istanbul", "Europe/London", "Europe/Moscow",
-		"Europe/Paris", "Pacific/Auckland", "Pacific/Honolulu",
-	}, options)
-	require.Len(t, options, 30)
-	for _, forbidden := range []string{"Asia/Shanghai", "Asia/Urumqi", "Asia/Hong_Kong", "Asia/Macau", "Asia/Taipei", "Asia/Chongqing", "Asia/Macao", "Hongkong", "PRC", "ROC"} {
-		require.NotContains(t, options, forbidden)
-		require.Error(t, ValidateOpenAIRequestTimezoneExtra(PlatformOpenAI, map[string]any{openAIRequestTimezoneExtraKey: forbidden}))
+	require.Greater(t, len(options), 30)
+	require.True(t, sort.StringsAreSorted(options))
+	require.Equal(t, "Asia/Singapore", DefaultOpenAIRequestTimezone)
+	require.Contains(t, options, DefaultOpenAIRequestTimezone)
+	seen := make(map[string]struct{}, len(options))
+	for _, name := range options {
+		require.NotContains(t, seen, name, "duplicate timezone")
+		seen[name] = struct{}{}
+		_, err := time.LoadLocation(name)
+		require.NoError(t, err, "invalid IANA timezone: %s", name)
 	}
-	for _, retired := range []string{"Europe/Oslo", "Africa/Accra", "Asia/Kathmandu"} {
-		require.Error(t, ValidateOpenAIRequestTimezoneExtra(PlatformOpenAI, map[string]any{openAIRequestTimezoneExtraKey: retired}))
-		require.Equal(t, DefaultOpenAIRequestTimezone, (&Account{Platform: PlatformOpenAI, Extra: map[string]any{openAIRequestTimezoneExtraKey: retired}}).OpenAIRequestTimezone())
+	for _, allowed := range []string{"Asia/Shanghai", "Asia/Urumqi", "Asia/Hong_Kong", "Asia/Macau", "Asia/Taipei", "Asia/Chongqing", "Europe/Oslo", "Africa/Accra", "Asia/Kathmandu", "Asia/Tokyo", "America/New_York"} {
+		require.Contains(t, options, allowed)
+		require.NoError(t, ValidateOpenAIRequestTimezoneExtra(PlatformOpenAI, map[string]any{openAIRequestTimezoneExtraKey: allowed}))
+		require.Equal(t, allowed, (&Account{Platform: PlatformOpenAI, Extra: map[string]any{openAIRequestTimezoneExtraKey: allowed}}).OpenAIRequestTimezone())
 	}
-	require.NoError(t, ValidateOpenAIRequestTimezoneExtra(PlatformOpenAI, map[string]any{openAIRequestTimezoneExtraKey: "Asia/Tokyo"}))
+	for _, invalid := range []string{"Invalid/Timezone", " Asia/Tokyo", "Asia/Tokyo "} {
+		require.NotContains(t, options, invalid)
+		require.Error(t, ValidateOpenAIRequestTimezoneExtra(PlatformOpenAI, map[string]any{openAIRequestTimezoneExtraKey: invalid}))
+		require.Equal(t, DefaultOpenAIRequestTimezone, (&Account{Platform: PlatformOpenAI, Extra: map[string]any{openAIRequestTimezoneExtraKey: invalid}}).OpenAIRequestTimezone())
+	}
 	require.NoError(t, ValidateOpenAIRequestTimezoneExtra(PlatformOpenAI, map[string]any{openAIRequestTimezoneExtraKey: ""}))
 	require.Error(t, ValidateOpenAIRequestTimezoneExtra(PlatformOpenAI, map[string]any{openAIRequestTimezoneExtraKey: 8}))
 	require.Error(t, ValidateOpenAIRequestTimezoneExtra(PlatformAnthropic, map[string]any{openAIRequestTimezoneExtraKey: "Asia/Singapore"}))
 	require.Equal(t, DefaultOpenAIRequestTimezone, (&Account{Platform: PlatformOpenAI}).OpenAIRequestTimezone())
-	require.Equal(t, DefaultOpenAIRequestTimezone, (&Account{Platform: PlatformOpenAI, Extra: map[string]any{openAIRequestTimezoneExtraKey: "Asia/Shanghai"}}).OpenAIRequestTimezone())
-	require.Equal(t, "America/New_York", (&Account{Platform: PlatformOpenAI, Extra: map[string]any{openAIRequestTimezoneExtraKey: "America/New_York"}}).OpenAIRequestTimezone())
+	require.Equal(t, DefaultOpenAIRequestTimezone, (&Account{Platform: PlatformOpenAI, Extra: map[string]any{openAIRequestTimezoneExtraKey: ""}}).OpenAIRequestTimezone())
 }
 
 func TestRewriteOpenAIRequestEnvironmentOnlyTimezone(t *testing.T) {
