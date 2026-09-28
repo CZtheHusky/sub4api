@@ -79,7 +79,7 @@ func TestListPluginAccounts_ScopeAndSchedulable(t *testing.T) {
 	assert.Contains(t, string(got[2].MetadataJSON), "429 from upstream", "pause reason must be readable in metadata")
 }
 
-// TestAccountReadableSnapshot_DenylistTripwire fails whenever a new EXPORTED field
+// TestAccountReadableSnapshot_DenylistTripwire fails whenever a new JSON-visible field
 // is added to Account without being classified as either safe-to-expose or
 // stripped by accountReadableSnapshotJSON. Because the snapshot is a denylist, a
 // newly added secret-bearing field would otherwise silently ship to plugins. When
@@ -109,8 +109,8 @@ func TestAccountReadableSnapshot_DenylistTripwire(t *testing.T) {
 	tp := reflect.TypeOf(Account{})
 	for i := 0; i < tp.NumField(); i++ {
 		f := tp.Field(i)
-		if f.PkgPath != "" {
-			continue // unexported: never marshaled by encoding/json
+		if f.PkgPath != "" || f.Tag.Get("json") == "-" {
+			continue // unexported or explicitly excluded from encoding/json
 		}
 		_, isStripped := stripped[f.Name]
 		_, isSafe := safeToExpose[f.Name]
@@ -124,14 +124,16 @@ func TestAccountReadableSnapshot_DenylistTripwire(t *testing.T) {
 	// The raw Credentials blob must never serialize; Extra and the proxy ARE released.
 	acct := &Account{
 		ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive,
-		Credentials: map[string]any{"access_token": "AT", "refresh_token": "LEAK-REFRESH"},
-		Extra:       map[string]any{"opaque": "extra-released"},
-		Proxy:       &Proxy{Host: "host", Port: 1, Username: "user", Password: "pw-released"},
+		Credentials:               map[string]any{"access_token": "AT", "refresh_token": "LEAK-REFRESH"},
+		Extra:                     map[string]any{"opaque": "extra-released"},
+		Proxy:                     &Proxy{Host: "host", Port: 1, Username: "user", Password: "pw-released"},
+		SchedulerTicketProjection: true,
 	}
 	snap := accountReadableSnapshotJSON(acct)
 	require.NotNil(t, snap)
 	var m map[string]any
 	require.NoError(t, json.Unmarshal(snap, &m))
+	assert.NotContains(t, m, "SchedulerTicketProjection", "internal scheduler state must not appear in metadata")
 	assert.NotContains(t, string(snap), "LEAK-REFRESH", "raw Credentials must never appear in metadata")
 	assert.Contains(t, string(snap), "extra-released", "Extra is intentionally released")
 	assert.Contains(t, string(snap), "pw-released", "proxy is intentionally released (already exposed via 打票)")
