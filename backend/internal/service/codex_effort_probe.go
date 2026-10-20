@@ -9,8 +9,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	httppool "github.com/MACOS-DO/sub4api/internal/pkg/httpclient"
 )
 
 // CodexEffortProbeResult 是 400 effort 探针的单模型判定结果。探针向 chatgpt.com
@@ -73,9 +71,10 @@ func parseQuotedValues(raw []byte) []string {
 	return values
 }
 
-// RunCodexEffortProbe 直连上游执行 400 effort 探针。不走网关回放链路：探针只
-// 依赖校验层的档位列表，必须避开分组 effort 策略改写与 failover 换账号，保证
-// 探测的就是目标账号本身。
+// RunCodexEffortProbe 执行 400 effort 探针。出站复用生产传输栈（doOpenAIUpstream：
+// 插件接管 / OpenAI profile 连接池 / zstd 请求压缩 / 401 刷新重放），与真实 codex
+// 流量的 TLS/传输指纹一致；但绕过 forward 层的分组 effort 策略改写与 failover 换
+// 账号——那些在更上层，探针必须钉死目标账号本身。
 func (s *OpenAIGatewayService) RunCodexEffortProbe(ctx context.Context, accountID int64, model string) CodexEffortProbeResult {
 	result := CodexEffortProbeResult{Model: model, Status: "failed", Reason: "identity_resolution_failed"}
 	account, err := s.accountRepo.GetByID(ctx, accountID)
@@ -102,7 +101,7 @@ func (s *OpenAIGatewayService) RunCodexEffortProbe(ctx context.Context, accountI
 		result.Reason = "request_build_failed"
 		return result
 	}
-	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	reqCtx, cancel := context.WithTimeout(WithHTTPUpstreamProfile(ctx, HTTPUpstreamProfileOpenAI), 15*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, chatgptCodexURL, bytes.NewReader(payload))
 	if err != nil {
@@ -123,13 +122,8 @@ func (s *OpenAIGatewayService) RunCodexEffortProbe(ctx context.Context, accountI
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
-	client, err := httppool.GetClient(httppool.Options{ProxyURL: proxyURL, Timeout: 15 * time.Second, ResponseHeaderTimeout: 10 * time.Second})
-	if err != nil {
-		result.Reason = "client_build_failed"
-		return result
-	}
 	start := time.Now()
-	resp, err := client.Do(req)
+	resp, err := s.doOpenAIUpstream(req, proxyURL, account)
 	result.DurationMS = int(time.Since(start).Milliseconds())
 	if err != nil {
 		result.Reason = "request_failed"
