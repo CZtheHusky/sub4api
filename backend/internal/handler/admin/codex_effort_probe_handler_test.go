@@ -50,11 +50,10 @@ func newEffortProbeHandler(prober codexEffortProber, attempts *fakeCodexTicketAt
 // 历史视图按这套语义渲染降智判定，映射漂移会让两种检测的历史互相误读。
 func TestEffortProbeCodexModelsRecordsHistory(t *testing.T) {
 	prober := &fakeEffortProber{results: map[string]service.CodexEffortProbeResult{
-		"gpt-6-sol":   {Model: "gpt-6-sol", Status: "degraded", Reason: "effort_list_contains_none", HTTPStatus: 400, DurationMS: 640, SupportedEfforts: []string{"none", "low", "medium", "high", "xhigh", "max"}},
-		"gpt-6.1-sol": {Model: "gpt-6.1-sol", Status: "normal", DurationMS: 710, SupportedEfforts: []string{"low", "medium", "high", "xhigh", "max", "ultra"}},
+		"gpt-6-astra": {Model: "gpt-6-astra", Status: "degraded", Reason: "effort_list_contains_none", HTTPStatus: 400, DurationMS: 640, SupportedEfforts: []string{"none", "low", "medium", "high", "xhigh", "max"}},
 	}}
 	attempts := &fakeCodexTicketAttemptRepo{}
-	w := effortProbeRequest(t, newEffortProbeHandler(prober, attempts), "41", `{"models":["gpt-6-sol","gpt-6.1-sol"]}`)
+	w := effortProbeRequest(t, newEffortProbeHandler(prober, attempts), "41", `{"models":["gpt-6-astra"]}`)
 	require.Equal(t, http.StatusOK, w.Code)
 
 	var envelope struct {
@@ -70,13 +69,12 @@ func TestEffortProbeCodexModelsRecordsHistory(t *testing.T) {
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &envelope))
-	require.Len(t, envelope.Data.Items, 2)
+	require.Len(t, envelope.Data.Items, 1)
 	require.Equal(t, "degraded", envelope.Data.Items[0].Status)
 	require.Equal(t, 400, envelope.Data.Items[0].HTTPStatus)
 	require.Equal(t, []string{"none", "low", "medium", "high", "xhigh", "max"}, envelope.Data.Items[0].SupportedEfforts)
-	require.Equal(t, "normal", envelope.Data.Items[1].Status)
 
-	require.Len(t, attempts.inserted, 2)
+	require.Len(t, attempts.inserted, 1)
 	degraded := attempts.inserted[0]
 	require.Equal(t, "effort_probe", degraded.VerificationMethod)
 	require.Equal(t, "success", degraded.Outcome)
@@ -85,34 +83,31 @@ func TestEffortProbeCodexModelsRecordsHistory(t *testing.T) {
 	require.Equal(t, "effort_list_contains_none", degraded.ReasonCode)
 	require.NotNil(t, degraded.HTTPStatus)
 	require.Equal(t, 400, *degraded.HTTPStatus)
-	normal := attempts.inserted[1]
-	require.Equal(t, "success", normal.Outcome)
-	require.NotNil(t, normal.FingerprintMatched)
-	require.True(t, *normal.FingerprintMatched)
-	require.Empty(t, normal.ReasonCode)
 }
 
 func TestEffortProbeCodexModelsUncertainAndFailedOutcomes(t *testing.T) {
 	prober := &fakeEffortProber{results: map[string]service.CodexEffortProbeResult{
-		"gpt-6-sol": {Model: "gpt-6-sol", Status: "uncertain", Reason: "effort_list_missing", HTTPStatus: 400},
-		"gpt-5.6-luna": {Model: "gpt-5.6-luna", Status: "failed", Reason: "unauthorized", HTTPStatus: 401, DurationMS: 120},
+		"gpt-6-astra": {Model: "gpt-6-astra", Status: "uncertain", Reason: "effort_list_missing", HTTPStatus: 400},
 	}}
 	attempts := &fakeCodexTicketAttemptRepo{}
-	w := effortProbeRequest(t, newEffortProbeHandler(prober, attempts), "41", `{"models":["gpt-6-sol","gpt-5.6-luna"]}`)
+	w := effortProbeRequest(t, newEffortProbeHandler(prober, attempts), "41", `{"models":["gpt-6-astra"]}`)
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Len(t, attempts.inserted, 2)
+	require.Len(t, attempts.inserted, 1)
 	require.Equal(t, "miss", attempts.inserted[0].Outcome)
 	require.Nil(t, attempts.inserted[0].FingerprintMatched)
-	require.Equal(t, "error", attempts.inserted[1].Outcome)
-	require.Equal(t, "unauthorized", attempts.inserted[1].ReasonCode)
 }
 
+// 探针判据只在 astra 系列上验证过：库内在列的非 astra 模型（如 gpt-6-sol）
+// 与库外模型一样必须 400，不能放进探测流程得出未经验证的结论。
 func TestEffortProbeCodexModelsValidation(t *testing.T) {
 	prober := &fakeEffortProber{}
 	// 模型不在指纹库白名单
 	w := effortProbeRequest(t, newEffortProbeHandler(prober, nil), "41", `{"models":["gpt-4"]}`)
 	require.Equal(t, http.StatusBadRequest, w.Code)
+	// 库内但非 astra 系列
+	w = effortProbeRequest(t, newEffortProbeHandler(prober, nil), "41", `{"models":["gpt-6-sol"]}`)
+	require.Equal(t, http.StatusBadRequest, w.Code)
 	// 未接线探针
-	w = effortProbeRequest(t, newEffortProbeHandler(nil, nil), "41", `{"models":["gpt-6-sol"]}`)
+	w = effortProbeRequest(t, newEffortProbeHandler(nil, nil), "41", `{"models":["gpt-6-astra"]}`)
 	require.Equal(t, http.StatusUnprocessableEntity, w.Code)
 }

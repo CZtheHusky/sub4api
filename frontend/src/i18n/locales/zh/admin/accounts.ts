@@ -107,7 +107,7 @@ export default {
         "emptySearch": "没有匹配的模型，试试其他关键词。",
         "order": "检测顺序 {index}",
         "start": "开始检测（{count} 个模型）",
-        "quickStart": "快速检测（不耗 Token）",
+        "quickStart": "快速检测 Astra（不耗 Token）",
         "quickRunContext": "{count} 个模型 · 400 effort 探针",
         "supportedEfforts": "服务侧支持的推理档位",
         "durationMs": "耗时",

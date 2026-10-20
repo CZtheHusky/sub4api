@@ -71,6 +71,23 @@ func parseQuotedValues(raw []byte) []string {
 	return values
 }
 
+// CodexEffortProbeModels 返回 400 effort 探针支持的模型：降智诊断白名单中
+// astra 系列的子集。探针判据（minimal 档 400 的档位列表含 none 即降智）目前
+// 只在 gpt-6-astra 上验证过，其余系列不开放，避免把未验证的判读当成结论。
+func CodexEffortProbeModels() ([]string, error) {
+	models, err := ModelTraceDiagnosticModels()
+	if err != nil {
+		return nil, err
+	}
+	probe := make([]string, 0, len(models))
+	for _, model := range models {
+		if strings.Contains(model, "astra") {
+			probe = append(probe, model)
+		}
+	}
+	return probe, nil
+}
+
 // RunCodexEffortProbe 执行 400 effort 探针。出站复用生产传输栈（doOpenAIUpstream：
 // 插件接管 / OpenAI profile 连接池 / zstd 请求压缩 / 401 刷新重放），与真实 codex
 // 流量的 TLS/传输指纹一致；但绕过 forward 层的分组 effort 策略改写与 failover 换
