@@ -79,18 +79,35 @@ describe('Codex diagnostic modal', () => {
   // 快速检测必须走 effort 探针接口而不是指纹诊断接口：两者判据不同，
   // 走错接口会把零 token 的探针当成逐模型指纹检测来跑。
   it('quick check runs the effort probe and renders verdicts through the shared pipeline', async () => {
-    effortProbe.mockResolvedValue({ items: [{ model: 'gpt-5.6-sol', status: 'degraded', http_status: 400, duration_ms: 640, supported_efforts: ['none', 'low', 'medium'] }] })
+    fingerprint.mockResolvedValue({ commit: 'abc123', models: ['gpt-6-astra', 'gpt-5.6-sol'] })
+    effortProbe.mockResolvedValue({ items: [{ model: 'gpt-6-astra', status: 'degraded', http_status: 400, duration_ms: 640, supported_efforts: ['none', 'low', 'medium'] }] })
     const wrapper = mountModal()
     await flushPromises()
-    configure(wrapper, ['gpt-5.6-sol'])
+    configure(wrapper, ['gpt-6-astra'])
     await nextTick()
     const quick = wrapper.findAll('button').find(button => button.text().includes('快速检测'))!
     expect(quick.attributes('disabled')).toBeUndefined()
     await quick.trigger('click')
     await flushPromises()
-    expect(effortProbe).toHaveBeenCalledWith(19, ['gpt-5.6-sol'], expect.any(AbortSignal))
+    expect(effortProbe).toHaveBeenCalledWith(19, ['gpt-6-astra'], expect.any(AbortSignal))
     expect(diagnose).not.toHaveBeenCalled()
-    expect(wrapper.find('[data-model="gpt-5.6-sol"]').attributes('data-status')).toBe('degraded')
+    expect(wrapper.find('[data-model="gpt-6-astra"]').attributes('data-status')).toBe('degraded')
+    wrapper.unmount()
+  })
+
+  // 快速探针判据只在 astra 系列上验证过：选择里没有 astra 模型时快速检测
+  // 必须禁用，不能把未验证的模型送进探针（与后端 astra 白名单一致）。
+  it('quick check stays disabled when no astra model is selected', async () => {
+    fingerprint.mockResolvedValue({ commit: 'abc123', models: ['gpt-6-astra', 'gpt-5.6-sol'] })
+    const wrapper = mountModal()
+    await flushPromises()
+    configure(wrapper, ['gpt-5.6-sol'])
+    await nextTick()
+    const quick = wrapper.findAll('button').find(button => button.text().includes('快速检测'))!
+    expect(quick.attributes('disabled')).toBeDefined()
+    await quick.trigger('click')
+    await flushPromises()
+    expect(effortProbe).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

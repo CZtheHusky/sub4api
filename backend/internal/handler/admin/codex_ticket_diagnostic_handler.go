@@ -86,7 +86,7 @@ func (h *AccountHandler) diagnoseCodexModels(c *gin.Context, generateChallenge f
 		response.BadRequest(c, "Select up to 32 models")
 		return
 	}
-	models, ok := validateCodexDiagnosticModels(c, input.Models)
+	models, ok := validateCodexDiagnosticModels(c, input.Models, service.ModelTraceDiagnosticModels)
 	if !ok {
 		return
 	}
@@ -177,10 +177,11 @@ func (h *AccountHandler) diagnoseCodexModel(c *gin.Context, accountID int64, mod
 	return item, attempt
 }
 
-// validateCodexDiagnosticModels 校验检测模型列表：白名单（指纹库可归属的 GPT
-// 模型）+ 去重，指纹诊断与 effort 探针共用。
-func validateCodexDiagnosticModels(c *gin.Context, requested []string) ([]string, bool) {
-	allowed, err := service.ModelTraceDiagnosticModels()
+// validateCodexDiagnosticModels 校验检测模型列表：白名单 + 去重。白名单由调用
+// 方提供——指纹诊断用 ModelTraceDiagnosticModels（指纹库可归属的 GPT 模型），
+// effort 探针用 CodexEffortProbeModels（仅 astra 系列）。
+func validateCodexDiagnosticModels(c *gin.Context, requested []string, allowlist func() ([]string, error)) ([]string, bool) {
+	allowed, err := allowlist()
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return nil, false
@@ -202,7 +203,8 @@ func validateCodexDiagnosticModels(c *gin.Context, requested []string) ([]string
 
 // EffortProbeCodexModels 快速降智检测：400 effort 探针，逐模型直连上游发送
 // reasoning.effort="minimal"，从校验层 400 报错的档位列表判定降智（含 none 即
-// 降智）。单请求约 1s、零 token 消耗，结果与指纹诊断共用探测历史。
+// 降智）。仅支持 astra 系列（CodexEffortProbeModels）——判据只在 gpt-6-astra
+// 上验证过。单请求约 1s、零 token 消耗，结果与指纹诊断共用探测历史。
 func (h *AccountHandler) EffortProbeCodexModels(c *gin.Context) {
 	accountID, ok := codexDiagnosticAccountID(c)
 	if !ok {
@@ -219,7 +221,7 @@ func (h *AccountHandler) EffortProbeCodexModels(c *gin.Context) {
 		response.BadRequest(c, "Select up to 32 models")
 		return
 	}
-	models, ok := validateCodexDiagnosticModels(c, input.Models)
+	models, ok := validateCodexDiagnosticModels(c, input.Models, service.CodexEffortProbeModels)
 	if !ok {
 		return
 	}

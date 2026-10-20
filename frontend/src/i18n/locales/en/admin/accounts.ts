@@ -107,7 +107,7 @@ export default {
         "emptySearch": "No matching models. Try another search.",
         "order": "Check order {index}",
         "start": "Check {count} models",
-        "quickStart": "Quick check (zero tokens)",
+        "quickStart": "Quick check Astra (zero tokens)",
         "quickRunContext": "{count} models · 400 effort probe",
         "supportedEfforts": "Upstream supported reasoning efforts",
         "durationMs": "Duration",

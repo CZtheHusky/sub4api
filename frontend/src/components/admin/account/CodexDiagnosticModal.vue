@@ -114,7 +114,7 @@
         <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
           <template v-if="diagnosticStage === 'setup'">
             <button v-if="diagnosticRun" type="button" class="btn btn-ghost min-h-12 flex-1 sm:flex-none" data-action="view-results" @click="showDiagnosticStage('results')">{{ text('viewResults') }}</button>
-            <button type="button" class="btn btn-secondary min-h-12 flex-1 sm:flex-none" data-action="quick-start" :disabled="!canStart" @click="runDiagnostic('effort')"><Icon name="bolt" size="sm" />{{ text('quickStart') }}</button>
+            <button type="button" class="btn btn-secondary min-h-12 flex-1 sm:flex-none" data-action="quick-start" :disabled="!canQuickStart" @click="runDiagnostic('effort')"><Icon name="bolt" size="sm" />{{ text('quickStart') }}</button>
             <button type="button" class="btn btn-primary min-h-12 flex-1 sm:flex-none" data-action="start" :disabled="!canStart" @click="runDiagnostic()">{{ text('start', { count: selectedModels.length }) }}<Icon name="arrowRight" size="sm" /></button>
           </template>
           <button v-else-if="diagnosing" type="button" class="btn btn-secondary min-h-12 flex-1 sm:flex-none" data-action="cancel" @click="cancelDiagnostic">{{ text('cancel') }}</button>
@@ -168,6 +168,8 @@ const canStart = computed(() => props.show && !!props.account && !closing.value 
   !modelsLoading.value && !modelsError.value &&
   selectedModels.value.length > 0 &&
   selectedModels.value.every(model => models.value.includes(model)))
+const isEffortProbeModel = (model: string) => model.includes('astra')
+const canQuickStart = computed(() => canStart.value && selectedModels.value.some(isEffortProbeModel))
 function isCurrentSession(session: number) { return session === accountSessionSerial && props.show && !!props.account && !closing.value }
 async function loadModels(refresh = false) {
   if (!props.show || !props.account || diagnosing.value || closing.value) return
@@ -210,13 +212,16 @@ function cancelDiagnostic() {
   emit('completed', run.accountID)
 }
 async function runDiagnostic(method: DiagnosticMethod = 'modeltrace') {
-  if (!canStart.value || !props.account) return
+  // 400 effort 快速探针只支持 astra 系列（判据只在 gpt-6-astra 上验证过），
+  // 与后端 CodexEffortProbeModels 的 astra 过滤保持一致
+  const runnable = method === 'effort' ? selectedModels.value.filter(isEffortProbeModel) : [...selectedModels.value]
+  if (!(method === 'effort' ? canQuickStart.value : canStart.value) || !props.account || !runnable.length) return
   const accountID = props.account.id
   const session = accountSessionSerial
   const serial = ++diagnosticSerial
   diagnosticRun.value = {
     accountID, fingerprintCommit: fingerprintCommit.value, method,
-    entries: [...selectedModels.value].map(model => ({ model, status: 'pending', expanded: false })), state: 'running'
+    entries: runnable.map(model => ({ model, status: 'pending', expanded: false })), state: 'running'
   }
   const run = diagnosticRun.value
   const isCurrent = () => serial === diagnosticSerial && isCurrentSession(session) && diagnosticRun.value === run && props.account?.id === accountID
