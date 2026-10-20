@@ -53,6 +53,7 @@ export default {
         "colDuration": "Duration",
         "colProxy": "Proxy",
         "colBank": "Bank commit",
+        "methodEffortProbe": "Quick",
         "vNormal": "Normal",
         "vDegraded": "Degraded",
         "vUncertain": "Uncertain",
@@ -106,6 +107,10 @@ export default {
         "emptySearch": "No matching models. Try another search.",
         "order": "Check order {index}",
         "start": "Check {count} models",
+        "quickStart": "Quick check (zero tokens)",
+        "quickRunContext": "{count} models · 400 effort probe",
+        "supportedEfforts": "Upstream supported reasoning efforts",
+        "durationMs": "Duration",
         "cancel": "Cancel remaining checks",
         "retest": "Back to retest",
         "viewResults": "View last results",
@@ -152,6 +157,16 @@ export default {
           "failed": "Request failed; this does not imply degradation",
           "pending": "Waiting for the previous model",
           "running": "Analyzing this response",
+          "stopped": "No conclusion received",
+          "not_run": "Request not sent after cancellation"
+        },
+        "quickCaption": {
+          "normal": "Upstream effort list has no 'none' — not degraded",
+          "degraded": "Upstream effort list contains 'none' — degraded routing",
+          "uncertain": "No readable effort list was returned",
+          "failed": "Request failed; this does not imply degradation",
+          "pending": "Waiting for the previous model",
+          "running": "Sending probe",
           "stopped": "No conclusion received",
           "not_run": "Request not sent after cancellation"
         }

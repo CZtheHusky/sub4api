@@ -5,11 +5,11 @@ import CodexDiagnosticModal from '../CodexDiagnosticModal.vue'
 import zhAccounts from '@/i18n/locales/zh/admin/accounts'
 import type { Account } from '@/types'
 
-const { fingerprint, diagnose, getById } = vi.hoisted(() => ({
-  fingerprint: vi.fn(), diagnose: vi.fn(), getById: vi.fn()
+const { fingerprint, diagnose, effortProbe, getById } = vi.hoisted(() => ({
+  fingerprint: vi.fn(), diagnose: vi.fn(), effortProbe: vi.fn(), getById: vi.fn()
 }))
 vi.mock('@/api/admin/codexTickets', () => ({
-  fingerprint, diagnose, refreshFingerprint: vi.fn()
+  fingerprint, diagnose, effortProbe, refreshFingerprint: vi.fn()
 }))
 vi.mock('@/api/admin', () => ({ adminAPI: { accounts: { getById } } }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: ref('zh-CN'), t: (key: string, values: Record<string, string | number> = {}) => {
@@ -73,6 +73,24 @@ describe('Codex diagnostic modal', () => {
     expect(diagnose).toHaveBeenCalledWith(19, ['gpt-5.6-sol'], expect.any(AbortSignal))
     expect(getById).not.toHaveBeenCalled()
     expect(wrapper.find('[data-model="gpt-5.6-sol"]').attributes('data-status')).toBe('normal')
+    wrapper.unmount()
+  })
+
+  // 快速检测必须走 effort 探针接口而不是指纹诊断接口：两者判据不同，
+  // 走错接口会把零 token 的探针当成逐模型指纹检测来跑。
+  it('quick check runs the effort probe and renders verdicts through the shared pipeline', async () => {
+    effortProbe.mockResolvedValue({ items: [{ model: 'gpt-5.6-sol', status: 'degraded', http_status: 400, duration_ms: 640, supported_efforts: ['none', 'low', 'medium'] }] })
+    const wrapper = mountModal()
+    await flushPromises()
+    configure(wrapper, ['gpt-5.6-sol'])
+    await nextTick()
+    const quick = wrapper.findAll('button').find(button => button.text().includes('快速检测'))!
+    expect(quick.attributes('disabled')).toBeUndefined()
+    await quick.trigger('click')
+    await flushPromises()
+    expect(effortProbe).toHaveBeenCalledWith(19, ['gpt-5.6-sol'], expect.any(AbortSignal))
+    expect(diagnose).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-model="gpt-5.6-sol"]').attributes('data-status')).toBe('degraded')
     wrapper.unmount()
   })
 

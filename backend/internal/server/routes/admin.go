@@ -391,6 +391,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.GET("/:id/codex-ticket-history", h.Admin.Account.GetCodexTicketHistory)
 		accounts.DELETE("/:id/codex-ticket-history", h.Admin.Account.DeleteCodexTicketHistory)
 		accounts.POST("/:id/codex-ticket-diagnostic", h.Admin.Account.DiagnoseCodexModels)
+		accounts.POST("/:id/codex-effort-probe", h.Admin.Account.EffortProbeCodexModels)
 		accounts.GET("/:id/claude/reset-credits", h.Admin.Account.ClaudeResetCredits)
 		// Same protection as the Codex reset-quota route (admin auth, audit, compliance guard).
 		accounts.POST("/:id/claude/reset-credits/redeem", h.Admin.Account.RedeemClaudeResetCredit)
