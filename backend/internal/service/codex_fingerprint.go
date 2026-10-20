@@ -135,19 +135,6 @@ func ModelTraceGPTModels() ([]string, error) {
 	return models, nil
 }
 
-func modelTraceKnownGPTModel(model string) bool {
-	models, err := ModelTraceGPTModels()
-	if err != nil {
-		return false
-	}
-	for _, known := range models {
-		if known == model {
-			return true
-		}
-	}
-	return false
-}
-
 // modelTraceExtraDiagnosticModels 是允许检测、但指纹库还没有收录分类的模型。
 // 库补上对应类之后，ModelTraceDiagnosticModels 会自动回到精确匹配。
 var modelTraceExtraDiagnosticModels = []string{"gpt-6.1-sol"}
@@ -177,37 +164,6 @@ func ModelTraceDiagnosticModels() ([]string, error) {
 		models = append(models, extra)
 	}
 	return models, nil
-}
-
-func codexTicketEligibleModel(model string) bool {
-	version := strings.TrimPrefix(model, "gpt-")
-	if version == model {
-		return false
-	}
-	majorText, remainder, _ := strings.Cut(version, ".")
-	major, err := strconv.Atoi(strings.SplitN(majorText, "-", 2)[0])
-	if err != nil {
-		return false
-	}
-	if major != 5 {
-		return major > 5
-	}
-	minor, err := strconv.Atoi(strings.SplitN(remainder, "-", 2)[0])
-	return err == nil && minor >= 6
-}
-
-func ModelTraceTicketModels() ([]string, error) {
-	models, err := ModelTraceGPTModels()
-	if err != nil {
-		return nil, err
-	}
-	eligible := make([]string, 0, len(models))
-	for _, model := range models {
-		if codexTicketEligibleModel(model) {
-			eligible = append(eligible, model)
-		}
-	}
-	return eligible, nil
 }
 
 func modelTraceParseNumbers(text string) []int {

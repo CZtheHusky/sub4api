@@ -485,16 +485,10 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.OpenAICodexTicketPromptTemplate != after.OpenAICodexTicketPromptTemplate {
 		changed = append(changed, "openai_codex_ticket_prompt_template")
 	}
-	if before.OpenAICodexTicketEnabled != after.OpenAICodexTicketEnabled {
-		changed = append(changed, "openai_codex_ticket_enabled")
-	}
 	// 自动降智检测：after 为 nil 表示本次请求未携带该配置（不修改），不计变更。
 	if req.CodexAutoDegradationCheck != nil &&
 		!equalCodexAutoDegradationCheckSettings(before.CodexAutoDegradationCheck, after.CodexAutoDegradationCheck) {
 		changed = append(changed, service.SettingKeyCodexAutoDegradationCheck)
-	}
-	if before.OpenAICodexTicketHarvestProxyURL != after.OpenAICodexTicketHarvestProxyURL {
-		changed = append(changed, "openai_codex_ticket_harvest_proxy_url")
 	}
 	if before.OpenAICodexUserAgent != after.OpenAICodexUserAgent {
 		changed = append(changed, "openai_codex_user_agent")

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strconv"
 	"strings"
@@ -256,27 +257,80 @@ type codexAutoDegradationProbe interface {
 	ProbeCodexAutoDegradation(ctx context.Context, accountID int64, model string) (CodexDiagnosticVerdict, error)
 }
 
-// codexAutoDegradationGatewayProbe 是生产实现：走 OpenAIGatewayService 的
-// 号原生 ModelTrace 探测 + 统一评分。
+// codexGatewayDiagnosticRunner 是自动降智探测对网关诊断 runner 的最小依赖，
+// 抽成接口便于状态机测试替换。
+type codexGatewayDiagnosticRunner interface {
+	RunGatewayDiagnostic(ctx context.Context, accountID int64, model string, challenge ModelTraceChallenge, timeout time.Duration) (output string, httpStatus int, gatewayErrCode string, reason string)
+}
+
+// codexAutoDegradationGatewayProbe 是生产实现：经 CodexGatewayDiagnosticRunner
+// 走网关指纹通路探测（httptest 回放本进程引擎 → 调度钉账号 → 保真转发器出站），
+// 再用统一的 EvaluateCodexDiagnostic 三态判定。探测拿到可评分输出后落一条
+// codex_ticket_attempts 记录（Trigger=auto_check），让记录页能看到自动检测历史。
 type codexAutoDegradationGatewayProbe struct {
-	gateway *OpenAIGatewayService
-	timeout time.Duration
+	runner   codexGatewayDiagnosticRunner
+	attempts CodexTicketAttemptRepository
+	timeout  time.Duration
 }
 
 func (p *codexAutoDegradationGatewayProbe) ProbeCodexAutoDegradation(ctx context.Context, accountID int64, model string) (CodexDiagnosticVerdict, error) {
-	if p == nil || p.gateway == nil {
+	if p == nil || p.runner == nil {
 		return CodexDiagnosticVerdict{Status: codexAutoDegradationStatusFailed}, errors.New("codex degradation probe unavailable")
 	}
 	challenge, err := NewModelTraceChallenge()
 	if err != nil {
 		return CodexDiagnosticVerdict{Status: codexAutoDegradationStatusFailed}, fmt.Errorf("generate model trace challenge: %w", err)
 	}
-	result := p.gateway.RunCodexNativeDiagnostic(ctx, accountID, model, challenge, p.timeout)
-	if result.Reason != "" {
+	start := time.Now()
+	output, httpStatus, _, reason := p.runner.RunGatewayDiagnostic(ctx, accountID, model, challenge, p.timeout)
+	if reason != "" {
 		// 请求/HTTP/输出不可评分：按探测失败处理，绝不能当作降智或健康。
-		return CodexDiagnosticVerdict{Status: codexAutoDegradationStatusFailed, Reason: result.Reason}, nil
+		return CodexDiagnosticVerdict{Status: codexAutoDegradationStatusFailed, Reason: reason}, nil
 	}
-	return EvaluateCodexDiagnostic(model, result.Output, challenge), nil
+	verdict := EvaluateCodexDiagnostic(model, output, challenge)
+	p.recordAttempt(ctx, accountID, model, challenge, verdict, httpStatus, start)
+	return verdict, nil
+}
+
+// recordAttempt 落库不阻断探测：用脱离请求生命周期的上下文，失败仅告警。
+func (p *codexAutoDegradationGatewayProbe) recordAttempt(ctx context.Context, accountID int64, model string, challenge ModelTraceChallenge, verdict CodexDiagnosticVerdict, httpStatus int, start time.Time) {
+	if p.attempts == nil {
+		return
+	}
+	expectedCount := challenge.ExpectedCount
+	attempt := &CodexTicketAttempt{
+		AccountID:              accountID,
+		Model:                  model,
+		OccurredAt:             start,
+		Outcome:                "success",
+		Trigger:                "auto_check",
+		DurationMS:             int(time.Since(start).Milliseconds()),
+		ReasonCode:             verdict.Reason,
+		VerificationMethod:     "modeltrace",
+		FingerprintCommit:      ModelTraceBankCommit(),
+		ChallengeExpectedCount: &expectedCount,
+		ParsedNumberCount:      &verdict.ParsedCount,
+	}
+	if httpStatus > 0 {
+		attempt.HTTPStatus = &httpStatus
+	}
+	if verdict.PredictedModel != "" {
+		attempt.FingerprintPredictedModel = verdict.PredictedModel
+		attempt.FingerprintProbability = &verdict.Probability
+		switch verdict.Status {
+		case codexAutoDegradationStatusNormal:
+			matched := true
+			attempt.FingerprintMatched = &matched
+		case codexAutoDegradationStatusDegraded:
+			matched := false
+			attempt.FingerprintMatched = &matched
+		}
+	}
+	insertCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := p.attempts.Insert(insertCtx, attempt); err != nil {
+		slog.Warn("codex_ticket_attempt_insert_failed", "trigger", "auto_check", "account_id", accountID, "model", model, "error", err)
+	}
 }
 
 // CodexAutoDegradationCheckService 是“自动降智检测”后台运行器：
@@ -336,14 +390,15 @@ func (s *CodexAutoDegradationCheckService) SetLeaderLock(lockCache LeaderLockCac
 
 // ProvideCodexAutoDegradationCheckService 构造并启动进程级周期运行器。
 func ProvideCodexAutoDegradationCheckService(
-	gateway *OpenAIGatewayService,
+	runner *CodexGatewayDiagnosticRunner,
+	attempts CodexTicketAttemptRepository,
 	accountRepo AccountRepository,
 	settingService *SettingService,
 	rateLimitService *RateLimitService,
 	lockCache LeaderLockCache,
 	db *sql.DB,
 ) *CodexAutoDegradationCheckService {
-	probe := &codexAutoDegradationGatewayProbe{gateway: gateway, timeout: codexAutoDegradationCheckProbeTimeout}
+	probe := &codexAutoDegradationGatewayProbe{runner: runner, attempts: attempts, timeout: codexAutoDegradationCheckProbeTimeout}
 	svc := NewCodexAutoDegradationCheckService(accountRepo, settingService, rateLimitService, probe)
 	svc.SetLeaderLock(lockCache, db)
 	svc.Start()

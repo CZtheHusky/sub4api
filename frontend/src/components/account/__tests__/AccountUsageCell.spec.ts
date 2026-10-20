@@ -130,7 +130,7 @@ describe('AccountUsageCell', () => {
     })
   })
 
-  it.each(['oauth', 'setup-token'] as const)('does not repeat Codex ticket status in OpenAI %s usage windows', async (type) => {
+  it.each(['oauth', 'setup-token'] as const)('renders usage windows for OpenAI %s accounts', async (type) => {
     getUsage.mockResolvedValue({ five_hour: { utilization: 25 } })
     const wrapper = mount(AccountUsageCell, {
       props: {
@@ -138,12 +138,6 @@ describe('AccountUsageCell', () => {
           id: type === 'oauth' ? 9701 : 9702,
           platform: 'openai',
           type,
-          codex_ticket_latest_event: { model: 'gpt-6-astra', kind: 'success', occurred_at: '2026-09-23T12:00:00Z' },
-          codex_turn_tickets: [
-            { model: 'gpt-6-astra', ready: true, remaining_seconds: 2520, blocked: false },
-            { model: 'gpt-5.6-sol', ready: false, remaining_seconds: 0, blocked: true },
-            { model: 'custom-model', ready: false, remaining_seconds: 0, blocked: false },
-          ],
         }),
       },
       global: { stubs: {
@@ -153,16 +147,11 @@ describe('AccountUsageCell', () => {
       } },
     })
     await flushPromises()
-    expect(wrapper.text()).not.toContain('admin.accounts.openai.codexTicketSummary')
-    expect(wrapper.text()).not.toContain('admin.accounts.openai.codexTicketEventSuccess')
     if (type === 'oauth') expect(wrapper.find('[data-test="usage-window"]').text()).toBe('5h')
     if (type === 'setup-token') {
       expect(getUsage).not.toHaveBeenCalled()
       expect(wrapper.find('[data-test="quota-reset"]').exists()).toBe(false)
     }
-    await wrapper.setProps({ account: { ...wrapper.props('account'), codex_turn_tickets: [] } })
-    expect(wrapper.text()).not.toContain('codexTicketSummary')
-    expect(wrapper.text()).not.toContain('42m00s')
     wrapper.unmount()
   })
 

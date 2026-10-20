@@ -1212,21 +1212,6 @@ export interface Account {
   bps_credential_state?: import("@/utils/openaiBps").BPSCredentialState
   ollama_cloud_usage?: OllamaCloudUsageState
   opencode_go_usage?: OpenCodeGoUsageState
-  codex_ticket_latest_event?: { model: string; kind: string; occurred_at: string }
-  codex_turn_tickets?: Array<{
-    model: string
-    length?: number
-    ready: boolean
-    remaining_seconds: number
-    blocked: boolean
-    captured_at?: string
-    turn_state_present?: boolean
-    cookie_present?: boolean
-    fingerprint_commit?: string
-    harvest_enabled?: boolean
-    harvest_paused?: boolean
-    expires_at?: string
-  }>
   // Extra fields including Codex usage, OpenAI compact capability, and model-level rate limits.
   extra?: (CodexUsageSnapshot & OpenAICompactState & {
     openai_request_timezone?: string

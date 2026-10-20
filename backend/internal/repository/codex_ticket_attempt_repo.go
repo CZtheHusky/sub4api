@@ -33,10 +33,14 @@ func (r *codexTicketAttemptRepository) Insert(ctx context.Context, a *service.Co
 		a.TurnStatePresent, a.CookiePresent).Scan(&a.ID)
 }
 
-func (r *codexTicketAttemptRepository) List(ctx context.Context, accountID int64, model string, successOnly bool, page, size int) ([]service.CodexTicketAttempt, int64, error) {
+// outcomeFilter: ""/"all" 全部, "success" 仅成功, "failed" 仅失败(miss+error)
+func (r *codexTicketAttemptRepository) List(ctx context.Context, accountID int64, model string, outcomeFilter string, page, size int) ([]service.CodexTicketAttempt, int64, error) {
 	condition := "account_id=$1 AND ($2='' OR model=$2) AND occurred_at >= NOW() - INTERVAL '90 days'"
-	if successOnly {
+	switch outcomeFilter {
+	case "success":
 		condition += " AND outcome='success'"
+	case "failed":
+		condition += " AND outcome<>'success'"
 	}
 	var total int64
 	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM codex_ticket_attempts WHERE "+condition, accountID, model).Scan(&total); err != nil {
@@ -49,7 +53,7 @@ func (r *codexTicketAttemptRepository) List(ctx context.Context, accountID int64
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	result := make([]service.CodexTicketAttempt, 0, size)
 	for rows.Next() {
 		a := service.CodexTicketAttempt{AccountID: accountID, Model: model}
@@ -111,12 +115,27 @@ func (r *codexTicketAttemptRepository) List(ctx context.Context, accountID int64
 	return result, total, rows.Err()
 }
 
+func (r *codexTicketAttemptRepository) Delete(ctx context.Context, accountID int64, model string, outcomeFilter string) (int64, error) {
+	condition := "account_id=$1 AND ($2='' OR model=$2)"
+	switch outcomeFilter {
+	case "success":
+		condition += " AND outcome='success'"
+	case "failed":
+		condition += " AND outcome<>'success'"
+	}
+	result, err := r.db.ExecContext(ctx, "DELETE FROM codex_ticket_attempts WHERE "+condition, accountID, model)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 func (r *codexTicketAttemptRepository) Cleanup(ctx context.Context) error {
 	conn, err := r.db.Conn(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	var acquired bool
 	if err := conn.QueryRowContext(ctx, "SELECT pg_try_advisory_lock($1)", codexTicketMaintenanceLock).Scan(&acquired); err != nil {
 		return err
@@ -197,23 +216,6 @@ func (r *codexTicketAttemptRepository) Cleanup(ctx context.Context) error {
 			return err
 		}
 		if n < 1000 {
-			break
-		}
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-	}
-	for {
-		result, err := conn.ExecContext(ctx, `DELETE FROM codex_ticket_invalidations WHERE id IN (
-			SELECT id FROM codex_ticket_invalidations WHERE occurred_at < NOW() - INTERVAL '90 days' ORDER BY occurred_at,id LIMIT 1000)`)
-		if err != nil {
-			return fmt.Errorf("cleanup ticket invalidations: %w", err)
-		}
-		removed, err := result.RowsAffected()
-		if err != nil {
-			return err
-		}
-		if removed < 1000 {
 			return nil
 		}
 		if err := ctx.Err(); err != nil {

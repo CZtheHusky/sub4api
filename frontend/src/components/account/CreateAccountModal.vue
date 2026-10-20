@@ -3270,16 +3270,6 @@
           </button>
         </div>
       </div>
-
-      <div v-if="form.platform === 'openai' && accountCategory === 'oauth-based'" class="border-t border-gray-200 pt-4 dark:border-dark-600">
-        <label class="input-label" for="codex-ticket-create-policy">{{ t('admin.accounts.openai.codexTicketAccountPolicy') }}</label>
-        <select id="codex-ticket-create-policy" v-model="codexTicketAccountPolicy" class="input" data-testid="codex-ticket-create-policy">
-          <option value="inherit">{{ t('admin.accounts.openai.codexTicketPolicyInherit') }}</option>
-          <option value="allow">{{ t('admin.accounts.openai.codexTicketPolicyAllow') }}</option>
-          <option value="deny">{{ t('admin.accounts.openai.codexTicketPolicyDeny') }}</option>
-        </select>
-        <p class="input-hint">{{ t('admin.accounts.openai.codexTicketAccountPolicyDesc') }}</p>
-      </div>
       <div
         v-if="form.platform === 'openai' && accountCategory === 'oauth-based'"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
@@ -4508,8 +4498,6 @@ const openAIImagesUrlToB64JsonEnabled = ref(false)
 const openAIEndpointCapabilities = ref<OpenAIEndpointCapability[]>(['chat_completions', 'embeddings'])
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
-type CodexTicketAccountPolicy = 'inherit' | 'allow' | 'deny'
-const codexTicketAccountPolicy = ref<CodexTicketAccountPolicy>('inherit')
 const codexCLIOnlyEnabled = ref(false)
 const codexCLIOnlyAppServerEnabled = ref(false)
 type CodexFingerprintMode = 'off' | 'device' | 'session' | 'full'
@@ -4995,7 +4983,6 @@ watch(
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
       codexCLIOnlyAppServerEnabled.value = false
-      codexTicketAccountPolicy.value = 'inherit'
     }
     if (newPlatform !== 'anthropic') {
       anthropicPassthroughEnabled.value = false
@@ -5461,7 +5448,6 @@ const resetForm = () => {
   openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   codexCLIOnlyEnabled.value = false
   codexCLIOnlyAppServerEnabled.value = false
-  codexTicketAccountPolicy.value = 'inherit'
   codexFingerprintMode.value = 'off'
   anthropicPassthroughEnabled.value = false
   anthropicAPIKeyAuthScheme.value = 'x_api_key'
@@ -5550,9 +5536,6 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
   }
   extra.openai_long_context_billing_enabled = openAILongContextBillingEnabled.value
 
-  if (accountCategory.value === 'oauth-based' && codexTicketAccountPolicy.value !== 'inherit') {
-    extra.codex_allow_without_ticket = codexTicketAccountPolicy.value === 'allow'
-  }
   if (accountCategory.value === 'oauth-based' && codexCLIOnlyEnabled.value) {
     extra.codex_cli_only = true
   } else {

@@ -116,6 +116,7 @@ func provideCleanup(
 	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	codexAutoDegradationCheck *service.CodexAutoDegradationCheckService,
+	codexDiagnosticRunner *service.CodexGatewayDiagnosticRunner,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 	opencodeGoUsage *service.OpenCodeGoUsageService,
 	auditLog *service.AuditLogService,
@@ -337,12 +338,6 @@ func provideCleanup(
 				}
 				return nil
 			}},
-			{"OpenAICodexTicketHarvester", func() error {
-				if openAIGateway != nil {
-					openAIGateway.StopOpenAICodexTicketHarvester()
-				}
-				return nil
-			}},
 			{"ScheduledTestRunnerService", func() error {
 				if scheduledTestRunner != nil {
 					scheduledTestRunner.Stop()
@@ -388,6 +383,12 @@ func provideCleanup(
 			{"CodexAutoDegradationCheckService", func() error {
 				if codexAutoDegradationCheck != nil {
 					codexAutoDegradationCheck.Stop()
+				}
+				return nil
+			}},
+			{"CodexGatewayDiagnosticRunner", func() error {
+				if codexDiagnosticRunner != nil {
+					codexDiagnosticRunner.Stop()
 				}
 				return nil
 			}},

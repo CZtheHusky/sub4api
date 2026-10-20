@@ -259,9 +259,6 @@ type UpdateSettingsRequest struct {
 	OpenAICodexVersionAutoSyncEnabled      *bool   `json:"openai_codex_version_auto_sync_enabled"`
 	ClaudeCodeClientVersion                *string `json:"claude_code_client_version"`
 	ClaudeCodeVersionAutoSyncEnabled       *bool   `json:"claude_code_version_auto_sync_enabled"`
-	OpenAICodexTicketEnabled               *bool   `json:"openai_codex_ticket_enabled"`
-	OpenAICodexTicketAllowWithoutTicket    *bool   `json:"openai_codex_ticket_allow_without_ticket"`
-	OpenAICodexTicketHarvestProxyURL       string  `json:"openai_codex_ticket_harvest_proxy_url"`
 	OpenAICodexTicketPromptTemplate        *string `json:"openai_codex_ticket_prompt_template"`
 
 	// 自动降智检测运行器配置（nil = 不修改，非 nil = 整体校验后替换）。
@@ -1819,30 +1816,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.ClaudeCodeVersionAutoSyncEnabled
 		}(),
-		OpenAICodexTicketEnabled: func() bool {
-			if req.OpenAICodexTicketEnabled != nil {
-				return *req.OpenAICodexTicketEnabled
-			}
-			return previousSettings.OpenAICodexTicketEnabled
-		}(),
-		OpenAICodexTicketAllowWithoutTicket: func() bool {
-			if req.OpenAICodexTicketAllowWithoutTicket != nil {
-				return *req.OpenAICodexTicketAllowWithoutTicket
-			}
-			return previousSettings.OpenAICodexTicketAllowWithoutTicket
-		}(),
 		OpenAICodexTicketPromptTemplate: func() string {
 			if req.OpenAICodexTicketPromptTemplate != nil {
 				return *req.OpenAICodexTicketPromptTemplate
 			}
 			return previousSettings.OpenAICodexTicketPromptTemplate
-		}(),
-		OpenAICodexTicketHarvestProxyURL: func() string {
-			next := strings.TrimSpace(req.OpenAICodexTicketHarvestProxyURL)
-			if service.IsMaskedProxyURL(next) {
-				return previousSettings.OpenAICodexTicketHarvestProxyURL
-			}
-			return next
 		}(),
 		MinCodexVersion:       strings.TrimSpace(req.MinCodexVersion),
 		MaxCodexVersion:       strings.TrimSpace(req.MaxCodexVersion),
@@ -2399,10 +2377,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ClaudeCodeClientVersion:                                updatedSettings.ClaudeCodeClientVersion,
 		ClaudeCodeClientVersionSynced:                          updatedSettings.ClaudeCodeClientVersionSynced,
 		ClaudeCodeVersionAutoSyncEnabled:                       updatedSettings.ClaudeCodeVersionAutoSyncEnabled,
-		OpenAICodexTicketEnabled:                               updatedSettings.OpenAICodexTicketEnabled,
-		OpenAICodexTicketAllowWithoutTicket:                    updatedSettings.OpenAICodexTicketAllowWithoutTicket,
-		OpenAICodexTicketHarvestProxyURL:                       service.MaskProxyURL(updatedSettings.OpenAICodexTicketHarvestProxyURL),
-		OpenAICodexTicketHarvestProxyConfigured:                strings.TrimSpace(updatedSettings.OpenAICodexTicketHarvestProxyURL) != "",
 		OpenAICodexTicketPromptTemplate:                        service.EffectiveCodexProbeTemplate(updatedSettings.OpenAICodexTicketPromptTemplate),
 		OpenAICodexTicketPromptTemplateDefault:                 service.DefaultCodexProbeTemplate(),
 		CodexAutoDegradationCheck:                              updatedSettings.CodexAutoDegradationCheck,

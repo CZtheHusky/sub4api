@@ -555,9 +555,6 @@ export default {
         claudeCodeVersionAutoSyncHint: '每小时从官方发布渠道获取最新版本的 Claude Code 客户端版本号，无需为了跟版本而升级本服务。关闭后停止获取新版本，已同步的版本仍可使用；上方手填版本始终优先。',
         claudeCodeVersionSyncedValue: '当前同步到：{version}',
         codexHardeningTitle: 'Codex 设置',
-        codexTicketEnabled: '292 打票',
-        codexTicketEnabledDesc:
-          '打票默认关闭，需要时手动开启。关闭后按原链路转发；开启后按账号和模型参与设置后台打票，并在业务请求中注入票据。升级到 1.1.4 时会一次性关闭此开关；之后手动开启的选择会保留。',
         codexProbeTemplate: 'Codex 打票与降智检测模板',
         codexProbeTemplateReset: '恢复默认',
         codexProbeTemplateDesc: '打票和降智检测共用此 JSONL 模板。保留消息结构、标签和占位符，最大 256 KiB；恢复默认后点击保存生效。默认固定文案为英文，动态随机挑战仍为中文。',
@@ -572,13 +569,6 @@ export default {
         codexAutoDegradationModels: '检测模型',
         codexAutoDegradationModelsDesc: '候选模型来自指纹库版本接口，可多选，至少保留一个。',
         codexAutoDegradationModelsEmpty: '暂无可选模型（指纹库未返回结果）',
-        codexTicketAllowWithoutTicket: '默认允许无票请求',
-        codexTicketAllowWithoutTicketDesc: '未配置时默认开启，缺票不会阻断正常请求；已有全局和账号策略会保留。无票限制仅在全局打票开启且账号及当前模型均参与打票时生效，账号单独设置优先生效。',
-        codexTicketHarvestProxy: '292 打票代理',
-        codexTicketHarvestProxyDesc:
-          '仅在门票功能开启时用于打票，保存后后续探测会使用新代理，无需重启。日常业务仍走账号自己的住宅代理。填写完整代理 URL（http 或 socks5h，含用户名和密码）。代理服务商需自行负责出口 IP 轮换。留空并保存表示不改已保存的值。',
-        codexTicketHarvestProxyPlaceholder: "http://user:pass{'@'}proxy.example.com:1080",
-        codexTicketHarvestProxyConfigured: '已配置（密码已隐藏）。要更换请整段粘贴新的代理 URL。',
         codexClientRestrictionTitle: 'Codex 客户端限制',
         codexHardeningDesc:
           '仅对已开启「仅允许 Codex 官方客户端」的 OpenAI OAuth 账号生效（全局）。在 User-Agent/Originator 之外，用版本区间、引擎指纹门与黑/白名单巩固判定。',

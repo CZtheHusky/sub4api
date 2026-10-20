@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -19,31 +17,21 @@ import (
 func TestCodexProbeBuildersHonorTemplateSnapshot(t *testing.T) {
 	custom := strings.Replace(DefaultCodexProbeTemplate(), "anonymous workspace", "pinned workspace", 1)
 	repo := &codexPolicyMigrationRepoStub{values: map[string]string{SettingKeyOpenAICodexTicketPromptTemplate: custom}}
-	var harvestHeaders http.Header
-	upstream := &codexTicketFuncUpstream{do: func(req *http.Request) (*http.Response, error) {
-		body, err := io.ReadAll(req.Body)
-		require.NoError(t, err)
-		assertCodexProbeIdentity(t, body, req.Header)
-		require.Contains(t, string(body), "pinned workspace")
-		require.Equal(t, "harvest challenge", gjson.GetBytes(body, "input.4.content.0.text").String())
-		harvestHeaders = req.Header.Clone()
-		return codexTicketResponse(), nil
-	}}
-	svc, account, _ := challengeHarvestService(t, upstream)
-	svc.settingService.settingRepo = repo
+	svc := &OpenAIGatewayService{settingService: NewSettingService(repo, nil)}
+	account := probeTestAccount(41)
 	pinned, err := svc.PrepareCodexProbeContext(context.Background())
 	require.NoError(t, err)
-	_, _, _, _, err = svc.fireOpenAICodexTicketProbe(pinned, account, "test-token", "gpt-6-astra", "", ModelTraceChallenge{Prompt: "harvest challenge"}, time.Second)
-	require.NoError(t, err)
-	repo.values[SettingKeyOpenAICodexTicketPromptTemplate] = strings.Replace(custom, "pinned workspace", "updated workspace", 1)
-	svc.settingService.InvalidateCodexProbeTemplateCache()
 	body, headers, err := svc.buildCodexProbeRequest(pinned, account, "gpt-6-astra", ModelTraceChallenge{Prompt: "diagnostic challenge"})
 	require.NoError(t, err)
 	assertCodexProbeIdentity(t, body, headers)
 	require.Contains(t, string(body), "pinned workspace")
 	require.Equal(t, "diagnostic challenge", gjson.GetBytes(body, "input.4.content.0.text").String())
-	require.NotEqual(t, harvestHeaders.Get("session-id"), headers.Get("session-id"))
-	require.Equal(t, harvestHeaders.Get("x-codex-installation-id"), headers.Get("x-codex-installation-id"))
+	repo.values[SettingKeyOpenAICodexTicketPromptTemplate] = strings.Replace(custom, "pinned workspace", "updated workspace", 1)
+	svc.settingService.InvalidateCodexProbeTemplateCache()
+	// 已固定的快照不受后续配置变更影响。
+	pinnedBody, _, err := svc.buildCodexProbeRequest(pinned, account, "gpt-6-astra", ModelTraceChallenge{Prompt: "next challenge"})
+	require.NoError(t, err)
+	require.Contains(t, string(pinnedBody), "pinned workspace")
 	body, _, err = svc.buildCodexProbeRequest(context.Background(), account, "gpt-5.4", ModelTraceChallenge{Prompt: "next model challenge"})
 	require.NoError(t, err)
 	require.Contains(t, string(body), "updated workspace")

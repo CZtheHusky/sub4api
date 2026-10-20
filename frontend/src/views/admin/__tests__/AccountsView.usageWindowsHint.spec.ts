@@ -19,7 +19,7 @@ const {
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
-    settings: { getSettings: async () => ({ openai_codex_ticket_enabled: false }) },
+    settings: { getSettings: async () => ({}) },
     accounts: {
       list: listAccounts,
       listWithEtag,

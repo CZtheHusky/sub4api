@@ -88,23 +88,6 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 	routingModel string,
 	routingServiceTier string,
 ) (http.Header, openAIWSSessionHeaderResolution, error) {
-	headers, resolution, _, err := s.buildOpenAIWSHeadersWithTicket(ctx, c, account, token, decision, isCodexCLI, turnState, turnMetadata, promptCacheKey, routingModel, routingServiceTier)
-	return headers, resolution, err
-}
-
-func (s *OpenAIGatewayService) buildOpenAIWSHeadersWithTicket(
-	ctx context.Context,
-	c *gin.Context,
-	account *Account,
-	token string,
-	decision OpenAIWSProtocolDecision,
-	isCodexCLI bool,
-	turnState string,
-	turnMetadata string,
-	promptCacheKey string,
-	routingModel string,
-	routingServiceTier string,
-) (http.Header, openAIWSSessionHeaderResolution, *openAICodexTicket, error) {
 	headers := make(http.Header)
 	if account == nil || !account.IsOpenAIAgentIdentity() {
 		headers.Set("authorization", "Bearer "+token)
@@ -166,12 +149,8 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeadersWithTicket(
 		headers.Set(openAIWSTurnStateHeader, state)
 	}
 	// 与 HTTP 出站同一守卫：异账号铸造的回带先剥离，剩下的就是本回合
-	// 真实血统；applyOpenAICodexTicketWithGeneration 只在头缺失时注入。
+	// 真实血统。
 	s.guardOpenAICodexTurnStateEcho(c, account, headers)
-	ticket, err := s.applyOpenAICodexTicketWithGeneration(ctx, account, routingModel, headers)
-	if err != nil {
-		return nil, sessionResolution, nil, err
-	}
 	if metadata := strings.TrimSpace(turnMetadata); metadata != "" {
 		headers.Set(openAIWSTurnMetadataHeader, metadata)
 	}
@@ -190,7 +169,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeadersWithTicket(
 
 	if account != nil && account.UsesOpenAICodexProtocol() {
 		if err := resolveAndSetOpenAIChatGPTAccountHeaders(ctx, s.accountRepo, headers, account); err != nil {
-			return nil, sessionResolution, nil, fmt.Errorf("resolve chatgpt account headers: %w", err)
+			return nil, sessionResolution, fmt.Errorf("resolve chatgpt account headers: %w", err)
 		}
 		headers.Set("originator", resolveOpenAIUpstreamOriginator(c, isCodexCLI))
 	}
@@ -254,7 +233,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeadersWithTicket(
 		projectCodexOutboundHeaders(headers, true)
 	}
 
-	return headers, sessionResolution, ticket, nil
+	return headers, sessionResolution, nil
 }
 
 func (s *OpenAIGatewayService) buildOpenAIWSCreatePayload(reqBody map[string]any, account *Account) map[string]any {

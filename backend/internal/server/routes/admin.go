@@ -386,17 +386,11 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.GET("/opencode-go-usage/settings", h.Admin.Account.GetOpenCodeGoUsageSettings)
 		accounts.PUT("/opencode-go-usage/settings", h.Admin.Account.UpdateOpenCodeGoUsageSettings)
 		accounts.GET("/:id", h.Admin.Account.GetByID)
-		accounts.GET("/codex-ticket-cadence", h.Admin.Account.GetCodexTicketCadence)
-		accounts.PUT("/codex-ticket-cadence", h.Admin.Account.UpdateCodexTicketCadence)
 		accounts.GET("/codex-ticket-fingerprint", h.Admin.Account.GetCodexFingerprintVersion)
 		accounts.POST("/codex-ticket-fingerprint/refresh", h.Admin.Account.RefreshCodexFingerprint)
 		accounts.GET("/:id/codex-ticket-history", h.Admin.Account.GetCodexTicketHistory)
-		accounts.GET("/:id/codex-ticket-events", h.Admin.Account.GetCodexTicketEvents)
-		accounts.GET("/:id/codex-ticket-invalidations", h.Admin.Account.ListCodexTicketInvalidations)
-		accounts.GET("/:id/codex-ticket-invalidations/:event_id", h.Admin.Account.GetCodexTicketInvalidation)
-		accounts.POST("/:id/codex-ticket-harvest", h.Admin.Account.HarvestCodexTicket)
+		accounts.DELETE("/:id/codex-ticket-history", h.Admin.Account.DeleteCodexTicketHistory)
 		accounts.POST("/:id/codex-ticket-diagnostic", h.Admin.Account.DiagnoseCodexModels)
-		accounts.PUT("/:id/codex-ticket-participation", h.Admin.Account.SetCodexTicketParticipation)
 		accounts.GET("/:id/claude/reset-credits", h.Admin.Account.ClaudeResetCredits)
 		// Same protection as the Codex reset-quota route (admin auth, audit, compliance guard).
 		accounts.POST("/:id/claude/reset-credits/redeem", h.Admin.Account.RedeemClaudeResetCredit)
@@ -550,8 +544,6 @@ func registerProxyRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth
 	{
 		proxies.GET("", h.Admin.Proxy.List)
 		proxies.GET("/all", h.Admin.Proxy.GetAll)
-		proxies.GET("/codex-ticket-pool", h.Admin.Proxy.GetCodexTicketPool)
-		proxies.PUT("/codex-ticket-pool", h.Admin.Proxy.UpdateCodexTicketPool)
 		// 代理导出泄露账号密码原文——要求 step-up 2FA
 		proxies.GET("/data", gin.HandlerFunc(stepUpAuth), h.Admin.Proxy.ExportData)
 		proxies.POST("/data", h.Admin.Proxy.ImportData)

@@ -402,11 +402,6 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	if compatTurnState != "" && upstreamReq.Header.Get("x-codex-turn-state") == "" {
 		upstreamReq.Header.Set("x-codex-turn-state", compatTurnState)
 	}
-	if ticket, err := s.applyOpenAICodexTicketWithGeneration(ctx, account, upstreamModel, upstreamReq.Header); err != nil {
-		return nil, err
-	} else if ticket != nil {
-		upstreamReq = upstreamReq.WithContext(context.WithValue(upstreamReq.Context(), codexTicketRequestContextKey{}, ticket))
-	}
 
 	// 7. Send request
 	proxyURL := ""
