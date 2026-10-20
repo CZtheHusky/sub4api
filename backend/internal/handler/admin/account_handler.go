@@ -70,6 +70,7 @@ type AccountHandler struct {
 	cfg                     *config.Config
 	opencodeGoUsage         *service.OpenCodeGoUsageService
 	codexDiagnosticRunner   codexDiagnosticRunner
+	codexEffortProber       codexEffortProber
 	codexTicketAttempts     service.CodexTicketAttemptRepository
 	codexDiagnosticSettings *service.SettingService
 }

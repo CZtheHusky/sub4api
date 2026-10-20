@@ -53,6 +53,7 @@ export default {
         "colDuration": "耗时",
         "colProxy": "代理",
         "colBank": "库版本",
+        "methodEffortProbe": "快速",
         "vNormal": "正常",
         "vDegraded": "降智",
         "vUncertain": "不确定",
@@ -106,6 +107,10 @@ export default {
         "emptySearch": "没有匹配的模型，试试其他关键词。",
         "order": "检测顺序 {index}",
         "start": "开始检测（{count} 个模型）",
+        "quickStart": "快速检测（不耗 Token）",
+        "quickRunContext": "{count} 个模型 · 400 effort 探针",
+        "supportedEfforts": "服务侧支持的推理档位",
+        "durationMs": "耗时",
         "cancel": "取消后续检测",
         "retest": "返回重测",
         "viewResults": "查看上次结果",
@@ -152,6 +157,16 @@ export default {
           "failed": "请求未完成，不代表降智",
           "pending": "等待前一个模型完成",
           "running": "正在分析本次响应",
+          "stopped": "未收到检测结论",
+          "not_run": "取消后未发起请求"
+        },
+        "quickCaption": {
+          "normal": "服务侧档位不含 none，未被降智路由",
+          "degraded": "服务侧档位含 none，被降智路由",
+          "uncertain": "未取得可判读的档位列表",
+          "failed": "请求未完成，不代表降智",
+          "pending": "等待前一个模型完成",
+          "running": "正在发送探针",
           "stopped": "未收到检测结论",
           "not_run": "取消后未发起请求"
         }

@@ -68,7 +68,7 @@
               <tr v-for="row in items" :key="row.id" class="cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/50" @click="selected = row">
                 <td class="whitespace-nowrap text-gray-500 dark:text-gray-400">{{ formatTime(row.occurred_at) }}</td>
                 <td class="font-medium text-gray-900 dark:text-gray-100">{{ row.model }}</td>
-                <td><span :class="verdictClass(row)">{{ verdictLabel(row) }}</span></td>
+                <td><span :class="verdictClass(row)">{{ verdictLabel(row) }}</span><span v-if="row.verification_method === 'effort_probe'" class="ml-1 rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">{{ t('admin.accounts.modeltraceHistory.methodEffortProbe') }}</span></td>
                 <td>{{ row.fingerprint_predicted_model || '—' }}</td>
                 <td>{{ row.fingerprint_probability != null ? (row.fingerprint_probability * 100).toFixed(1) + '%' : '—' }}</td>
                 <td class="whitespace-nowrap">{{ row.duration_ms ? (row.duration_ms / 1000).toFixed(1) + 's' : '—' }}</td>

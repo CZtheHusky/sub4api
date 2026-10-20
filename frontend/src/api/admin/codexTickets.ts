@@ -31,6 +31,8 @@ export interface TicketDiagnostic {
   probability?: number
   parsed_number_count?: number
   http_status?: number
+  supported_efforts?: string[]
+  duration_ms?: number
 }
 
 const base = (id: number) => `/admin/accounts/${id}`
@@ -47,6 +49,12 @@ export async function refreshFingerprint(): Promise<{ commit: string; models: st
 
 export async function diagnose(id: number, models: string[], signal?: AbortSignal): Promise<{ items: TicketDiagnostic[]; canceled: boolean }> {
   const { data } = await apiClient.post(`${base(id)}/codex-ticket-diagnostic`, { models }, { timeout: Math.max(120000, models.length * 180000), signal })
+  return data
+}
+
+// 400 effort 快速探针：minimal 档校验层 400，报错档位列表含 none 即降智，零 token 消耗
+export async function effortProbe(id: number, models: string[], signal?: AbortSignal): Promise<{ items: TicketDiagnostic[]; canceled: boolean }> {
+  const { data } = await apiClient.post(`${base(id)}/codex-effort-probe`, { models }, { timeout: Math.max(60000, models.length * 30000), signal })
   return data
 }
 

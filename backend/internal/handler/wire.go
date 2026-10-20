@@ -62,6 +62,7 @@ func ProvideAdminHandlers(
 	accountHandler.SetOpenCodeGoUsageService(opencodeGoUsage)
 	accountHandler.SetClaudeResetCreditService(claudeResetCredits)
 	accountHandler.SetCodexDiagnosticDependencies(codexDiagnosticRunner, codexTicketAttempts, settingService)
+	accountHandler.SetCodexEffortProbeRunner(openAIGatewayService)
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
 		User:                   userHandler,

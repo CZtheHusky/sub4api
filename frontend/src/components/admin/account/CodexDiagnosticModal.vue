@@ -62,7 +62,7 @@
             <span class="shrink-0 rounded-md px-2 py-1 text-xs font-medium" :class="diagnosticRun.state === 'cancelled' ? statusTone('stopped') : statusTone('normal')">{{ text(diagnosing ? 'running' : diagnosticRun.state === 'cancelled' ? 'cancelled' : 'finished') }}</span>
           </div>
           <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-dark-400">
-            <span>{{ text('runContext', { count: diagnosticTotal }) }}</span>
+            <span>{{ diagnosticRun.method === 'effort' ? text('quickRunContext', { count: diagnosticTotal }) : text('runContext', { count: diagnosticTotal }) }}</span>
           </div>
           <div class="mt-5 flex items-center justify-between gap-3 text-xs">
             <p role="status" aria-live="polite" class="min-w-0 break-words text-gray-800 dark:text-dark-200">{{ currentDiagnostic ? text('checking', { model: currentDiagnostic }) : text(diagnosticRun.state === 'cancelled' ? 'stoppedSummary' : 'finishedSummary') }}</p>
@@ -84,7 +84,7 @@
                 <span v-if="entry.status === 'running'" class="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none"></span>
                 <Icon v-else :name="statusIcon(entry.status)" size="sm" />
               </span>
-              <div class="diagnostic-result-model min-w-0 flex-1"><h4 class="font-mono text-[13px] font-medium leading-6 text-gray-900 [overflow-wrap:anywhere] dark:text-white">{{ entry.model }}</h4><p class="mt-0.5 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ text('caption.' + entry.status) }}</p></div>
+              <div class="diagnostic-result-model min-w-0 flex-1"><h4 class="font-mono text-[13px] font-medium leading-6 text-gray-900 [overflow-wrap:anywhere] dark:text-white">{{ entry.model }}</h4><p class="mt-0.5 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ text((diagnosticRun.method === 'effort' ? 'quickCaption.' : 'caption.') + entry.status) }}</p></div>
               <span class="diagnostic-result-badge shrink-0 rounded-md px-2 py-1 text-xs font-medium" :class="statusTone(entry.status)">{{ text('status.' + entry.status) }}</span>
               <button v-if="entry.result" type="button" class="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-700" :aria-expanded="entry.expanded" :aria-controls="'codex-diagnostic-detail-' + index" :aria-label="text(entry.expanded ? 'hideDetails' : 'showDetails', { model: entry.model })" @click="entry.expanded = !entry.expanded"><Icon name="chevronDown" size="sm" :class="entry.expanded ? 'rotate-180' : ''" /></button>
               <span v-else class="ml-auto h-3 w-11 shrink-0 sm:h-11"></span>
@@ -93,6 +93,10 @@
               <template v-if="entry.result.predicted_model || entry.result.probability != null">
                 <div><dt class="text-gray-500 dark:text-dark-400">{{ text('prediction') }}</dt><dd class="mt-1 break-all font-mono text-gray-800 dark:text-dark-200">{{ entry.result.predicted_model || '—' }}</dd></div>
                 <div><dt class="text-gray-500 dark:text-dark-400">{{ text('probability') }}</dt><dd class="mt-1 text-gray-800 dark:text-dark-200">{{ entry.result.probability == null ? '—' : (entry.result.probability * 100).toFixed(1) + '%' }}</dd></div>
+              </template>
+              <template v-else-if="entry.result.supported_efforts">
+                <div class="sm:col-span-2"><dt class="text-gray-500 dark:text-dark-400">{{ text('supportedEfforts') }}</dt><dd class="mt-1 break-all font-mono text-gray-800 [overflow-wrap:anywhere] dark:text-dark-200">{{ entry.result.supported_efforts.join(' · ') }}</dd></div>
+                <div v-if="entry.result.duration_ms"><dt class="text-gray-500 dark:text-dark-400">{{ text('durationMs') }}</dt><dd class="mt-1 text-gray-800 dark:text-dark-200">{{ entry.result.duration_ms }} ms</dd></div>
               </template>
               <div v-if="entry.result.reason" class="sm:col-span-2"><dt class="text-gray-500 dark:text-dark-400">{{ text('reason') }}</dt><dd class="mt-1 whitespace-pre-wrap break-words text-gray-800 [overflow-wrap:anywhere] dark:text-dark-200">{{ entry.result.reason === 'template_invalid' ? text('templateInvalid') : entry.result.reason }}</dd></div>
               <div v-if="entry.result.http_status" class="sm:col-span-2"><dt class="text-gray-500 dark:text-dark-400">{{ text('httpStatus') }}</dt><dd class="mt-1 break-all text-gray-800 dark:text-dark-200">HTTP {{ entry.result.http_status }}</dd></div>
@@ -110,7 +114,8 @@
         <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
           <template v-if="diagnosticStage === 'setup'">
             <button v-if="diagnosticRun" type="button" class="btn btn-ghost min-h-12 flex-1 sm:flex-none" data-action="view-results" @click="showDiagnosticStage('results')">{{ text('viewResults') }}</button>
-            <button type="button" class="btn btn-primary min-h-12 flex-1 sm:flex-none" data-action="start" :disabled="!canStart" @click="runDiagnostic">{{ text('start', { count: selectedModels.length }) }}<Icon name="arrowRight" size="sm" /></button>
+            <button type="button" class="btn btn-secondary min-h-12 flex-1 sm:flex-none" data-action="quick-start" :disabled="!canStart" @click="runDiagnostic('effort')"><Icon name="bolt" size="sm" />{{ text('quickStart') }}</button>
+            <button type="button" class="btn btn-primary min-h-12 flex-1 sm:flex-none" data-action="start" :disabled="!canStart" @click="runDiagnostic()">{{ text('start', { count: selectedModels.length }) }}<Icon name="arrowRight" size="sm" /></button>
           </template>
           <button v-else-if="diagnosing" type="button" class="btn btn-secondary min-h-12 flex-1 sm:flex-none" data-action="cancel" @click="cancelDiagnostic">{{ text('cancel') }}</button>
           <button v-else type="button" class="btn btn-primary min-h-12 flex-1 sm:flex-none" data-action="retest" @click="showDiagnosticStage('setup')"><Icon name="arrowLeft" size="sm" />{{ text('retest') }}</button>
@@ -135,9 +140,10 @@ const emit = defineEmits<{ close: []; completed: [accountID: number] }>()
 const { t } = useI18n()
 const text = (key: string, values: Record<string, string | number> = {}) => t(`admin.accounts.codexDiagnosticDialog.${key}`, values)
 type DiagnosticStatus = tickets.TicketDiagnostic['status'] | 'pending' | 'running' | 'stopped' | 'not_run'
+type DiagnosticMethod = 'modeltrace' | 'effort'
 type DiagnosticStage = 'setup' | 'results'
 interface DiagnosticEntry { model: string; status: DiagnosticStatus; result?: tickets.TicketDiagnostic; expanded: boolean }
-interface DiagnosticRun { accountID: number; fingerprintCommit: string; entries: DiagnosticEntry[]; state: 'running' | 'finished' | 'cancelled' }
+interface DiagnosticRun { accountID: number; fingerprintCommit: string; method: DiagnosticMethod; entries: DiagnosticEntry[]; state: 'running' | 'finished' | 'cancelled' }
 const summaryStatuses = ['normal', 'degraded', 'uncertain', 'failed'] as const
 const models = ref<string[]>([])
 const modelsLoading = ref(false)
@@ -203,13 +209,13 @@ function cancelDiagnostic() {
   }
   emit('completed', run.accountID)
 }
-async function runDiagnostic() {
+async function runDiagnostic(method: DiagnosticMethod = 'modeltrace') {
   if (!canStart.value || !props.account) return
   const accountID = props.account.id
   const session = accountSessionSerial
   const serial = ++diagnosticSerial
   diagnosticRun.value = {
-    accountID, fingerprintCommit: fingerprintCommit.value,
+    accountID, fingerprintCommit: fingerprintCommit.value, method,
     entries: [...selectedModels.value].map(model => ({ model, status: 'pending', expanded: false })), state: 'running'
   }
   const run = diagnosticRun.value
@@ -222,7 +228,9 @@ async function runDiagnostic() {
       const requestController = new AbortController()
       controller.value = requestController
       try {
-        const data = await tickets.diagnose(accountID, [entry.model], requestController.signal)
+        const data = method === 'effort'
+          ? await tickets.effortProbe(accountID, [entry.model], requestController.signal)
+          : await tickets.diagnose(accountID, [entry.model], requestController.signal)
         if (!isCurrent()) break
         const result = data.items?.find(item => item.model === entry.model)
         if (result) { entry.result = result; entry.status = result.status }
