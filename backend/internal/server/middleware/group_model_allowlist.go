@@ -31,6 +31,11 @@ import (
 //     local_model_configuration 与 ingress 拒绝原因 model_not_allowed。
 func GroupModelAllowlist() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 降智探测（内部诊断令牌 + ctx 标记）必须能测任何模型，跳过模型白名单。
+		if service.IsCodexTicketDiagnostic(c.Request.Context()) {
+			c.Next()
+			return
+		}
 		apiKey, ok := GetAPIKeyFromContext(c)
 		if !ok || apiKey == nil || apiKey.Group == nil || !apiKey.Group.ModelAllowlistEnabled() {
 			c.Next()

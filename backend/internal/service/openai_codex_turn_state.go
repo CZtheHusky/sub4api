@@ -128,7 +128,7 @@ func (s *OpenAIGatewayService) noteOpenAICodexTurnStateProvenance(c *gin.Context
 
 // guardOpenAICodexTurnStateEcho 出站守卫：客户端回带的 turn-state 若已知由
 // 其他账号铸造则剥离，同账号或无溯源记录时保持原样。存活到守卫之后的头是
-// 本回合真实血统，applyOpenAICodexTicket 只在头缺失时才注入打票所得门票。
+// 本回合真实血统。
 func (s *OpenAIGatewayService) guardOpenAICodexTurnStateEcho(c *gin.Context, account *Account, h http.Header) {
 	if s == nil || h == nil || account == nil {
 		return

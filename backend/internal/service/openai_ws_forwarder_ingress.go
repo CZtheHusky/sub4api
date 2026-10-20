@@ -804,7 +804,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	}
 
 	firstRoutingFields := gjson.GetManyBytes(firstPayload.payloadRaw, "model", "service_tier")
-	wsHeaders, _, ticket, buildHdrErr := s.buildOpenAIWSHeadersWithTicket(
+	wsHeaders, _, buildHdrErr := s.buildOpenAIWSHeaders(
 		ctx,
 		c,
 		account,
@@ -831,10 +831,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		projectCodexOutboundHeaders(wsHeaders, true)
 	}
 	baseAcquireReq := openAIWSAcquireRequest{
-		Account:          account,
-		WSURL:            wsURL,
-		Headers:          wsHeaders,
-		ObserveHandshake: s.codexTicketHandshakeObserver(ctx, ticket),
+		Account: account,
+		WSURL:   wsURL,
+		Headers: wsHeaders,
 		HeadersFactory: func(factoryCtx context.Context, headers http.Header) (http.Header, error) {
 			return s.refreshOpenAIWSAuthHeaders(factoryCtx, account, headers)
 		},
@@ -1961,7 +1960,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		if nextPayload.promptCacheKey != "" {
 			// ingress 会话在整个客户端 WS 生命周期内复用同一上游连接；
 			// prompt_cache_key 对握手头的更新仅在未来需要重新建连时生效。
-			updatedHeaders, _, updatedTicket, updHdrErr := s.buildOpenAIWSHeadersWithTicket(
+			updatedHeaders, _, updHdrErr := s.buildOpenAIWSHeaders(
 				ctx,
 				c,
 				account,
@@ -1978,7 +1977,6 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				logOpenAIWSModeInfo("ingress_ws_update_headers_failed account_id=%d err=%v", account.ID, updHdrErr)
 			} else {
 				baseAcquireReq.Headers = updatedHeaders
-				baseAcquireReq.ObserveHandshake = s.codexTicketHandshakeObserver(ctx, updatedTicket)
 			}
 		}
 		setOpenAICodexRoutingHint(baseAcquireReq.Headers, account, nextRoutingFields[0].String(), nextRoutingFields[1].String())

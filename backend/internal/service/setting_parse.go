@@ -252,7 +252,6 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyClaudeCodeClientVersion:                            "",
 		SettingKeyClaudeCodeClientVersionSynced:                      "",
 		SettingKeyClaudeCodeVersionAutoSyncEnabled:                   "true",
-		SettingKeyOpenAICodexTicketHarvestProxyURL:                   "",
 		SettingPaymentVisibleMethodAlipaySource:                      "",
 		SettingPaymentVisibleMethodWxpaySource:                       "",
 		SettingPaymentVisibleMethodAlipayEnabled:                     "false",
@@ -907,16 +906,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	} else {
 		result.ClaudeCodeVersionAutoSyncEnabled = true
 	}
-	if v, ok := settings[SettingKeyOpenAICodexTicketEnabled]; ok && v != "" {
-		result.OpenAICodexTicketEnabled = v == "true"
-	} else if s != nil && s.cfg != nil {
-		result.OpenAICodexTicketEnabled = s.cfg.Gateway.OpenAICodexTicket.Enabled
-	}
-	result.OpenAICodexTicketAllowWithoutTicket = s == nil || s.cfg == nil || !s.cfg.Gateway.OpenAICodexTicket.FailClosed
-	if v, ok := settings[SettingKeyOpenAICodexTicketAllowWithoutTicket]; ok && v != "" {
-		result.OpenAICodexTicketAllowWithoutTicket = v == "true"
-	}
-	result.OpenAICodexTicketHarvestProxyURL = strings.TrimSpace(settings[SettingKeyOpenAICodexTicketHarvestProxyURL])
 	result.OpenAICodexTicketPromptTemplate = settings[SettingKeyOpenAICodexTicketPromptTemplate]
 	// 自动降智检测：key 缺失或损坏时回显默认值（默认关闭），
 	// 保证读取路径（GET 回显 / 保存合并）永远拿到可用配置。

@@ -5,11 +5,11 @@ import CodexDiagnosticModal from '../CodexDiagnosticModal.vue'
 import zhAccounts from '@/i18n/locales/zh/admin/accounts'
 import type { Account } from '@/types'
 
-const { events, fingerprint, invalidation, diagnose, getById, harvest } = vi.hoisted(() => ({
-  events: vi.fn(), fingerprint: vi.fn(), invalidation: vi.fn(), diagnose: vi.fn(), getById: vi.fn(), harvest: vi.fn()
+const { fingerprint, diagnose, getById } = vi.hoisted(() => ({
+  fingerprint: vi.fn(), diagnose: vi.fn(), getById: vi.fn()
 }))
 vi.mock('@/api/admin/codexTickets', () => ({
-  events, fingerprint, invalidation, diagnose, harvest, refreshFingerprint: vi.fn()
+  fingerprint, diagnose, refreshFingerprint: vi.fn()
 }))
 vi.mock('@/api/admin', () => ({ adminAPI: { accounts: { getById } } }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: ref('zh-CN'), t: (key: string, values: Record<string, string | number> = {}) => {
@@ -18,8 +18,7 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: ref('zh-CN'), t: (key: st
 } }) }))
 
 const account = {
-  id: 19, name: 'GPT Account', platform: 'openai', type: 'oauth',
-  codex_turn_tickets: [{ model: 'gpt-5.6-sol', ready: true, length: 292, turn_state_present: true, cookie_present: false, harvest_enabled: true }]
+  id: 19, name: 'GPT Account', platform: 'openai', type: 'oauth'
 } as Account
 
 function mountModal(value: Account = account) {
@@ -61,15 +60,9 @@ describe('Codex diagnostic modal', () => {
 
   })
 
-  it('allows checking a missing ticket with account and model harvesting disabled', async () => {
-    const noTicket = {
-      ...account,
-      extra: { codex_ticket_harvest_enabled: false, codex_ticket_harvest_models: { 'gpt-5.6-sol': false } },
-      codex_turn_tickets: [{ model: 'gpt-5.6-sol', ready: false, harvest_enabled: false, turn_state_present: false, cookie_present: false }]
-    } as Account
-    getById.mockResolvedValue(noTicket)
+  it('runs the diagnostic through the gateway path', async () => {
     diagnose.mockResolvedValue({ items: [{ model: 'gpt-5.6-sol', status: 'normal' }] })
-    const wrapper = mountModal(noTicket)
+    const wrapper = mountModal()
     await flushPromises()
     configure(wrapper, ['gpt-5.6-sol'])
     await nextTick()
@@ -78,8 +71,6 @@ describe('Codex diagnostic modal', () => {
     await start.trigger('click')
     await flushPromises()
     expect(diagnose).toHaveBeenCalledWith(19, ['gpt-5.6-sol'], expect.any(AbortSignal))
-    expect(harvest).not.toHaveBeenCalled()
-    expect(events).not.toHaveBeenCalled()
     expect(getById).not.toHaveBeenCalled()
     expect(wrapper.find('[data-model="gpt-5.6-sol"]').attributes('data-status')).toBe('normal')
     wrapper.unmount()
@@ -257,7 +248,7 @@ describe('Codex diagnostic modal', () => {
     const wrapper = mountModal()
     await flushPromises()
     expect(wrapper.text()).not.toContain('Billing Key')
-    expect(wrapper.text()).toContain('使用当前账号自带凭据发起检测，无需计费 Key。')
+    expect(wrapper.text()).toContain('经本网关转发链路探测，不消耗 API Key 额度。')
     expect(wrapper.get('[data-action="start"]').attributes('disabled')).toBeDefined()
     const view = configure(wrapper, ['gpt-5.6-sol'])
     await nextTick()
@@ -286,7 +277,6 @@ describe('Codex diagnostic modal', () => {
     expect(wrapper.text()).not.toContain('票据中心')
     expect(wrapper.text()).not.toContain('当前票据')
     expect(getById).not.toHaveBeenCalled()
-    expect(events).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

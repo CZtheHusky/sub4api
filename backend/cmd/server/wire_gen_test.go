@@ -84,6 +84,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // quotaFlusher
 		nil, // upstreamBillingProbe
 		nil, // codexAutoDegradationCheck
+		nil, // codexDiagnosticRunner
 		nil, // ollamaCloudUsage
 		nil, // opencodeGoUsage
 		nil, // auditLog

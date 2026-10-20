@@ -67,11 +67,11 @@ type AccountHandler struct {
 	grokImportProber        grokImportProber
 	upstreamBillingProbe    *service.UpstreamBillingProbeService
 	ollamaCloudUsage        *service.OllamaCloudUsageService
-	codexTicketSettings     *service.SettingService
-	codexTicketGateway      *service.OpenAIGatewayService
-	codexDiagnostic         codexDiagnosticProbe
 	cfg                     *config.Config
 	opencodeGoUsage         *service.OpenCodeGoUsageService
+	codexDiagnosticRunner   codexDiagnosticRunner
+	codexTicketAttempts     service.CodexTicketAttemptRepository
+	codexDiagnosticSettings *service.SettingService
 }
 
 // SetUpstreamBillingProbeService attaches the optional remote billing probe service.
@@ -85,15 +85,6 @@ func (h *AccountHandler) SetOllamaCloudUsageService(usage *service.OllamaCloudUs
 
 func (h *AccountHandler) SetOpenCodeGoUsageService(usage *service.OpenCodeGoUsageService) {
 	h.opencodeGoUsage = usage
-}
-
-// SetCodexTicketSettings supplies the live policy without mutating shared config.
-func (h *AccountHandler) SetCodexTicketSettings(settings *service.SettingService) {
-	h.codexTicketSettings = settings
-}
-func (h *AccountHandler) SetCodexTicketGateway(gateway *service.OpenAIGatewayService) {
-	h.codexTicketGateway = gateway
-	h.codexDiagnostic = gateway
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -356,7 +347,6 @@ const accountListGroupUngroupedQueryValue = "ungrouped"
 
 func (h *AccountHandler) accountResponseFromService(account *service.Account) *dto.Account {
 	out := dto.AccountFromService(account)
-	h.enrichCodexTicketStatus(account, out)
 	if h != nil && h.ollamaCloudUsage != nil && out != nil {
 		h.ollamaCloudUsage.EnrichState(out.OllamaCloudUsage)
 	}
@@ -365,7 +355,6 @@ func (h *AccountHandler) accountResponseFromService(account *service.Account) *d
 
 func (h *AccountHandler) accountListResponseFromService(account *service.Account) *dto.Account {
 	out := dto.AccountFromServiceShallow(account)
-	h.enrichCodexTicketStatus(account, out)
 	if out != nil && account != nil {
 		out.Proxy = dto.ProxyFromService(account.Proxy)
 	}
@@ -373,17 +362,6 @@ func (h *AccountHandler) accountListResponseFromService(account *service.Account
 		h.ollamaCloudUsage.EnrichState(out.OllamaCloudUsage)
 	}
 	return out
-}
-
-func (h *AccountHandler) enrichCodexTicketStatus(account *service.Account, out *dto.Account) {
-	if h != nil && h.cfg != nil && out != nil {
-		cfg := h.cfg.Gateway.OpenAICodexTicket
-		if h.codexTicketSettings != nil {
-			cfg.Enabled = h.codexTicketSettings.GetOpenAICodexTicketEnabled(context.Background(), cfg.Enabled)
-			cfg.FailClosed = !h.codexTicketSettings.GetOpenAICodexTicketAllowWithoutTicket(context.Background(), !cfg.FailClosed)
-		}
-		out.CodexTurnTickets = service.OpenAICodexTicketStatuses(account, cfg, time.Now())
-	}
 }
 
 func (h *AccountHandler) isSimpleMode() bool {
@@ -822,22 +800,6 @@ func (h *AccountHandler) List(c *gin.Context) {
 		_ = g.Wait()
 	}
 
-	var ticketEvents map[int64]service.CodexTicketRecentEvent
-	if pageHasOpenAIAccounts && h.codexTicketGateway != nil {
-		var ticketAccountIDs []int64
-		for _, account := range accounts {
-			if account.Platform == service.PlatformOpenAI {
-				ticketAccountIDs = append(ticketAccountIDs, account.ID)
-			}
-		}
-		var err error
-		ticketEvents, err = h.codexTicketGateway.CodexTicketLatestEvents(c.Request.Context(), ticketAccountIDs)
-		if err != nil {
-			response.ErrorFrom(c, err)
-			return
-		}
-	}
-
 	// Build response with concurrency info
 	result := make([]AccountWithConcurrency, len(accounts))
 	for i := range accounts {
@@ -848,9 +810,6 @@ func (h *AccountHandler) List(c *gin.Context) {
 			if h.isSimpleMode() {
 				accountResponse.GroupIDs = filterSimpleModeGroupIDs(accountResponse.GroupIDs, simpleModeCompositeServiceGroupIDs(acc))
 			}
-		}
-		if event, ok := ticketEvents[acc.ID]; ok {
-			accountResponse.CodexTicketLatestEvent = &event
 		}
 		item := AccountWithConcurrency{
 			Account:            accountResponse,

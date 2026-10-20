@@ -1515,7 +1515,7 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 		if platform == PlatformGrok {
 			accounts = s.filterGrokFreeQuotaAccountsForOpenAI(ctx, accounts)
 		}
-		return accounts, nil
+		return s.withCodexDiagnosticPinnedAccount(ctx, accounts, groupID, platform), nil
 	}
 	var accounts []Account
 	var err error
@@ -1533,7 +1533,50 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 	if platform == PlatformGrok {
 		accounts = s.filterGrokFreeQuotaAccountsForOpenAI(ctx, accounts)
 	}
-	return accounts, nil
+	return s.withCodexDiagnosticPinnedAccount(ctx, accounts, groupID, platform), nil
+}
+
+// withCodexDiagnosticPinnedAccount 复查豁免：被 auto_degradation_check 封锁的
+// 钉账号不会出现在可调度列表里（SQL/快照已按冷却字段过滤），诊断请求需要把
+// 它补回候选集，调度器的钉账号钩子才能选中它。仅补钉账号本身、仅豁免本功能
+// 写入的封锁；其它账号与其它来源封锁一律不动。
+func (s *OpenAIGatewayService) withCodexDiagnosticPinnedAccount(ctx context.Context, accounts []Account, groupID *int64, platform string) []Account {
+	targetID, ok := codexTicketDiagnosticTargetAccount(ctx)
+	if !ok || s.accountRepo == nil {
+		return accounts
+	}
+	for i := range accounts {
+		if accounts[i].ID == targetID {
+			return accounts
+		}
+	}
+	account, err := s.accountRepo.GetByID(ctx, targetID)
+	if err != nil || account == nil || !codexDiagnosticExemptsAccountBlock(ctx, account) {
+		return accounts
+	}
+	// 补回的副本清掉本功能写入的临时停调字段（豁免已判定成立）；其余可调度性
+	// 判定（active/schedulable/平台/分组成员）照常。
+	candidate := *account
+	candidate.TempUnschedulableUntil = nil
+	candidate.TempUnschedulableReason = ""
+	if !candidate.IsSchedulable() || NormalizeOpenAICompatiblePlatform(candidate.Platform) != platform {
+		return accounts
+	}
+	if groupID != nil {
+		member := false
+		for _, id := range candidate.GroupIDs {
+			if id == *groupID {
+				member = true
+				break
+			}
+		}
+		if !member {
+			return accounts
+		}
+	} else if len(candidate.GroupIDs) > 0 {
+		return accounts
+	}
+	return append(accounts, candidate)
 }
 
 func (s *OpenAIGatewayService) tryAcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int) (*AcquireResult, error) {

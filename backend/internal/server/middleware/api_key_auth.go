@@ -18,8 +18,8 @@ import (
 const maxAPIKeyAuthorizationHeaderBytes = service.MaxAPIKeyCredentialBytes + 128
 
 // NewAPIKeyAuthMiddleware 创建 API Key 认证中间件
-func NewAPIKeyAuthMiddleware(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) APIKeyAuthMiddleware {
-	return APIKeyAuthMiddleware(apiKeyAuthWithSubscription(apiKeyService, subscriptionService, cfg))
+func NewAPIKeyAuthMiddleware(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config, diagnosticAuth *service.CodexDiagnosticInternalAuth) APIKeyAuthMiddleware {
+	return APIKeyAuthMiddleware(apiKeyAuthWithSubscription(apiKeyService, subscriptionService, cfg, diagnosticAuth))
 }
 
 // apiKeyAuthWithSubscription API Key认证中间件（支持订阅验证）
@@ -31,7 +31,7 @@ func NewAPIKeyAuthMiddleware(apiKeyService *service.APIKeyService, subscriptionS
 // /v1/usage、/v1/sub2api/billing 端点与异步生图任务查询只需鉴权，不需要计费执行。
 // usage 允许过期/配额耗尽的 Key 查询自身用量，billing 用于读取当前 Key 的倍率配置，
 // 异步生图查询允许已耗尽额度的 Key 拉取自身任务结果。
-func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) gin.HandlerFunc {
+func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config, diagnosticAuth *service.CodexDiagnosticInternalAuth) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// ── 1. 提取 API Key ──────────────────────────────────────────
 		if rejectInvalidAuthAbuse(c, apiKeyService) {
@@ -93,6 +93,27 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			}
 			AbortWithError(c, 401, "API_KEY_REQUIRED", "API key is required in Authorization header (Bearer scheme), x-api-key header, or x-goog-api-key header")
 			return
+		}
+
+		// ── 1.5 内部降智探测合成认证 ─────────────────────────────────
+		// 双条件缺一不可：ctx 诊断标记（外部请求无法注入）+ 进程级令牌常量时间
+		// 相等（令牌不出进程）。命中后合成身份直接放行，计费执行层整块跳过；
+		// 不命中则落入正常认证流程（错误的令牌按普通无效 Key 处理）。
+		if diagnosticAuth != nil && service.IsCodexTicketDiagnostic(c.Request.Context()) && diagnosticAuth.MatchesToken(apiKeyString) {
+			if groupID, ok := service.CodexDiagnosticGroupFromContext(c.Request.Context()); ok {
+				apiKey := diagnosticAuth.SyntheticAPIKey(groupID)
+				ctx := context.WithValue(c.Request.Context(), ctxkey.UserID, apiKey.User.ID)
+				c.Request = c.Request.WithContext(ctx)
+				c.Set(string(ContextKeyAPIKey), apiKey)
+				c.Set(string(ContextKeyUser), AuthSubject{
+					UserID:      apiKey.User.ID,
+					Concurrency: apiKey.User.Concurrency,
+				})
+				c.Set(string(ContextKeyUserRole), apiKey.User.Role)
+				setGroupContext(c, apiKey.Group)
+				c.Next()
+				return
+			}
 		}
 
 		// ── 2. 验证 Key 存在 ─────────────────────────────────────────

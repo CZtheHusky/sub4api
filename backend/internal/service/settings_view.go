@@ -254,9 +254,6 @@ type SystemSettings struct {
 	ClaudeCodeClientVersion                string // 出站声明的 Claude Code CLI 客户端版本号（管理员覆写）；空值跟随自动同步值
 	ClaudeCodeClientVersionSynced          string // 自动同步到的官方最新版本号（只读展示）
 	ClaudeCodeVersionAutoSyncEnabled       bool   // 是否启用 Claude Code 客户端版本号自动同步（默认 true）
-	OpenAICodexTicketAllowWithoutTicket    bool   // global default for missing per-account ticket
-	OpenAICodexTicketEnabled               bool   // Codex 292 打票总开关；关闭则不打票不注入
-	OpenAICodexTicketHarvestProxyURL       string // Codex 292 打票代理 URL；空则回退 yaml/env
 	OpenAICodexTicketPromptTemplate        string // empty selects the embedded shared probe template
 	// CodexAutoDegradationCheck 自动降智检测运行器配置；请求未携带（nil）时
 	// 保存路径跳过写入，读取路径由 parseSettings 始终填充（缺失回退默认值）。

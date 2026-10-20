@@ -530,6 +530,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/modeltrace-history',
+    name: 'AdminModelTraceHistory',
+    component: () => import('@/views/admin/ModelTraceHistoryView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'ModelTrace History',
+      titleKey: 'admin.accounts.modeltraceHistory.title',
+      descriptionKey: 'admin.accounts.modeltraceHistory.description'
+    }
+  },
+  {
     path: '/admin/plugins',
     name: 'AdminPlugins',
     component: () => import('@/views/admin/PluginsView.vue'),

@@ -169,7 +169,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	storeDisabledConnMode := s.openAIWSStoreDisabledConnMode()
 	forceNewConnByPolicy := shouldForceNewConnOnStoreDisabled(storeDisabledConnMode, lastFailureReason)
 	forceNewConn := forceNewConnByPolicy && storeDisabled && previousResponseID == "" && sessionHash != "" && preferredConnID == ""
-	wsHeaders, sessionResolution, ticket, buildHdrErr := s.buildOpenAIWSHeadersWithTicket(
+	wsHeaders, sessionResolution, buildHdrErr := s.buildOpenAIWSHeaders(
 		ctx,
 		c,
 		account,
@@ -231,10 +231,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	defer acquireCancel()
 
 	acquireRequest := openAIWSAcquireRequest{
-		Account:          account,
-		WSURL:            wsURL,
-		Headers:          wsHeaders,
-		ObserveHandshake: s.codexTicketHandshakeObserver(ctx, ticket),
+		Account: account,
+		WSURL:   wsURL,
+		Headers: wsHeaders,
 		HeadersFactory: func(factoryCtx context.Context, headers http.Header) (http.Header, error) {
 			return s.refreshOpenAIWSAuthHeaders(factoryCtx, account, headers)
 		},

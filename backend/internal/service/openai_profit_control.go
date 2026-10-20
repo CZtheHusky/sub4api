@@ -195,6 +195,10 @@ func (s *OpenAIGatewayService) withOpenAIProfitControlGate(ctx context.Context, 
 	if _, suppressed := ctx.Value(openAIProfitControlSuppressCtxKey{}).(struct{}); suppressed {
 		return ctx
 	}
+	// 降智探测必须能测任何账号，跳过利润门。
+	if isCodexTicketDiagnostic(ctx) {
+		return ctx
+	}
 	if groupID != nil {
 		if existing, ok := ctx.Value(openAIProfitControlGateCtxKey{}).(*openAIProfitControlGate); ok && existing != nil && existing.groupID == *groupID {
 			return ctx

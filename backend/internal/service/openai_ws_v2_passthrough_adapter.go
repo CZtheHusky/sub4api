@@ -850,7 +850,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		turnState = strings.TrimSpace(c.GetHeader(openAIWSTurnStateHeader))
 		turnMetadata = strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader))
 	}
-	headers, _, ticket, buildHdrErr := s.buildOpenAIWSHeadersWithTicket(
+	headers, _, buildHdrErr := s.buildOpenAIWSHeaders(
 		ctx,
 		c,
 		account,
@@ -885,7 +885,6 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		return errors.New("openai ws passthrough dialer is nil")
 	}
 
-	observeHandshake := s.codexTicketHandshakeObserver(ctx, ticket)
 	agentTaskRecoveryTried := false
 	oauthRecoveryTried := false
 	var oauthCredentialOwner *Account
@@ -901,9 +900,6 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		sentHeaders := cloneHeader(headers)
 		upstreamConn, statusCode, handshakeHeaders, err = dialer.Dial(dialCtx, wsURL, headers, proxyURL)
 		cancelDial()
-		if observeHandshake != nil {
-			observeHandshake(sentHeaders, statusCode, handshakeHeaders)
-		}
 		if err == nil {
 			break
 		}

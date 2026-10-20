@@ -896,6 +896,8 @@ var ProviderSet = wire.NewSet(
 	ProvideAccountUsageService,
 	ProvideAccountTestService,
 	ProvideUpstreamBillingProbeService,
+	ProvideCodexDiagnosticInternalAuth,
+	ProvideCodexGatewayDiagnosticRunner,
 	ProvideCodexAutoDegradationCheckService,
 	ProvideOllamaCloudUsageService,
 	ProvideOpenCodeGoUsageService,

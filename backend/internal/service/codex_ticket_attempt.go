@@ -35,7 +35,8 @@ type CodexTicketAttempt struct {
 
 type CodexTicketAttemptRepository interface {
 	Insert(context.Context, *CodexTicketAttempt) error
-	List(context.Context, int64, string, bool, int, int) ([]CodexTicketAttempt, int64, error)
+	List(context.Context, int64, string, string, int, int) ([]CodexTicketAttempt, int64, error)
+	Delete(context.Context, int64, string, string) (int64, error)
 	Cleanup(context.Context) error
 	TryLock(context.Context, int64, string) (func(), bool, error)
 }

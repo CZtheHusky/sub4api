@@ -410,6 +410,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "User context not found")
 		return
 	}
+	// 降智探测（内部诊断令牌合成认证 + ctx 标记）：零计费——跳过计费资格/在途
+	// 预留/用量记录/请求审计/合成用户并发槽；账号并发槽与真实上游转发照常。
+	diagnostic := service.IsCodexTicketDiagnostic(c.Request.Context())
 	reqLog := requestLogger(
 		c,
 		"handler.openai_gateway.responses",
@@ -512,7 +515,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
-	auditRecorder := beginUserRequestAudit(c, h.userRequestAuditService, service.ContentModerationProtocolOpenAIResponses, endpointForAudit(c, "/openai/v1/responses"), reqModel, body, apiKey, subject.UserID)
+	var auditRecorder *userRequestAuditRecorder
+	if !diagnostic {
+		auditRecorder = beginUserRequestAudit(c, h.userRequestAuditService, service.ContentModerationProtocolOpenAIResponses, endpointForAudit(c, "/openai/v1/responses"), reqModel, body, apiKey, subject.UserID)
+	}
 	defer func() {
 		if auditRecorder != nil {
 			auditRecorder.Finish(c.Writer.Status(), nil, nil)
@@ -634,26 +640,32 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	defer func() { stopJSONKeepalive() }()
 
 	// 2. Re-check billing eligibility after wait
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
-		reqLog.Info("openai.billing_eligibility_check_failed", zap.Error(err))
-		status, code, message, retryAfter := billingErrorDetails(err)
-		if retryAfter > 0 {
-			c.Header("Retry-After", strconv.Itoa(retryAfter))
+	if !diagnostic {
+		if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
+			reqLog.Info("openai.billing_eligibility_check_failed", zap.Error(err))
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.handleStreamingAwareError(c, status, code, message, streamStarted)
+			return
 		}
-		h.handleStreamingAwareError(c, status, code, message, streamStarted)
-		return
 	}
 
 	// 余额模式在途预留：防止并发请求在预检时看到同一份余额而集体透支。
-	inflightRelease, err := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, tokenInflightEstimate(reqModel, body))
-	if err != nil {
-		reqLog.Info("openai.inflight_reservation_rejected", zap.Error(err))
-		status, code, message, retryAfter := billingErrorDetails(err)
-		if retryAfter > 0 {
-			c.Header("Retry-After", strconv.Itoa(retryAfter))
+	inflightRelease := func() {}
+	if !diagnostic {
+		var err error
+		inflightRelease, err = reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, tokenInflightEstimate(reqModel, body))
+		if err != nil {
+			reqLog.Info("openai.inflight_reservation_rejected", zap.Error(err))
+			status, code, message, retryAfter := billingErrorDetails(err)
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
+			}
+			h.handleStreamingAwareError(c, status, code, message, streamStarted)
+			return
 		}
-		h.handleStreamingAwareError(c, status, code, message, streamStarted)
-		return
 	}
 	defer inflightRelease()
 
@@ -865,7 +877,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		// #5148 对齐：错误返回携带的部分 result（流中断前上游已计量的 usage）照常
 		// 入账；failover 错误恒定 result=nil，不会重复计费。
 		submitResponsesUsage := func(res *service.OpenAIForwardResult) {
-			if res == nil {
+			if res == nil || diagnostic {
 				return
 			}
 			stampOpenAIRequestedReasoningEffort(res, c)
@@ -2137,6 +2149,10 @@ func (h *OpenAIGatewayHandler) acquireResponsesUserSlot(
 	reqLog *zap.Logger,
 ) (func(), bool) {
 	ctx := c.Request.Context()
+	// 降智探测使用合成身份（userID=0），不占用任何真实用户的并发槽。
+	if service.IsCodexTicketDiagnostic(ctx) {
+		return nil, true
+	}
 	userReleaseFunc, err := h.concurrencyHelper.AcquireUserSlotWithWait(c, userID, userConcurrency, reqStream, streamStarted)
 	if err != nil {
 		reqLog.Warn("openai.user_slot_acquire_failed", zap.Error(err))

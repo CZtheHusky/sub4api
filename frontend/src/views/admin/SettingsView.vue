@@ -4502,27 +4502,6 @@
               </h2>
             </div>
             <div class="p-6 space-y-4">
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                      {{ t("admin.settings.gatewayForwarding.codexTicketEnabled") }}
-                    </h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.gatewayForwarding.codexTicketEnabledDesc") }}
-                    </p>
-                  </div>
-                  <Toggle
-                    id="codex-ticket-enabled"
-                    v-model="form.openai_codex_ticket_enabled"
-                  />
-                </div>
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.gatewayForwarding.codexTicketAllowWithoutTicket") }}</h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.settings.gatewayForwarding.codexTicketAllowWithoutTicketDesc") }}</p>
-                  </div>
-                  <Toggle id="codex-ticket-allow-without" v-model="form.openai_codex_ticket_allow_without_ticket" />
-                </div>
                 <div class="space-y-2">
                   <div class="flex items-center justify-between gap-3">
                     <label for="codex-probe-template" class="text-base font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.gatewayForwarding.codexProbeTemplate") }}</label>
@@ -4534,7 +4513,6 @@
                   </div>
                   <textarea id="codex-probe-template" v-model="form.openai_codex_ticket_prompt_template" data-testid="codex-probe-template" aria-describedby="codex-probe-template-help" class="input w-full font-mono text-xs" rows="12" wrap="off" :spellcheck="false" :disabled="saving" />
                 </div>
-                <CodexTicketCadenceSettings ref="codexTicketCadenceRef" :saving="saving" />
                 <!-- 自动降智检测 -->
                 <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
                   <div class="flex items-center justify-between gap-4">
@@ -9090,7 +9068,6 @@
 </template>
 
 <script setup lang="ts">
-import CodexTicketCadenceSettings from '@/components/admin/account/CodexTicketCadenceSettings.vue'
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
@@ -9220,7 +9197,6 @@ type SettingsTab =
   | "email"
   | "backup";
 const activeTab = ref<SettingsTab>("general");
-const codexTicketCadenceRef = ref<InstanceType<typeof CodexTicketCadenceSettings> | null>(null);
 const settingsTabs = [
   { key: "general" as SettingsTab, icon: "home" as const },
   { key: "agreement" as SettingsTab, icon: "document" as const },
@@ -10148,12 +10124,8 @@ const form = reactive<SettingsForm>({
   // 只读展示：自动同步任务写入的官方最新稳定版，不参与提交（提交载荷按字段显式构造）
   claude_code_client_version_synced: "",
   claude_code_version_auto_sync_enabled: true,
-  openai_codex_ticket_enabled: false,
-  openai_codex_ticket_allow_without_ticket: true,
   openai_codex_ticket_prompt_template: "",
   openai_codex_ticket_prompt_template_default: "",
-  openai_codex_ticket_harvest_proxy_url: "",
-  openai_codex_ticket_harvest_proxy_configured: false,
   // 自动降智检测（默认关闭；loadSettings 会用后端回显覆盖）
   codex_auto_degradation_check: {
     enabled: false,
@@ -11539,13 +11511,6 @@ const siteBillingModeHint = computed(() =>
 );
 
 async function saveSettings() {
-  const cadence = codexTicketCadenceRef.value;
-  try {
-    if (activeTab.value === "gateway" || cadence?.isDirty?.()) cadence?.validate?.();
-  } catch (error) {
-    appStore.showError(extractApiErrorMessage(error, t("admin.settings.failedToSave")));
-    return;
-  }
   for (let index = 0; index < form.payment_recharge_bonus_tiers.length; index++) {
     const error = getRechargeBonusTierDraftError(
       form.payment_recharge_bonus_tiers,
@@ -11926,8 +11891,6 @@ async function saveSettings() {
       claude_code_client_version: form.claude_code_client_version?.trim() || "",
       claude_code_version_auto_sync_enabled:
         form.claude_code_version_auto_sync_enabled,
-      openai_codex_ticket_enabled: form.openai_codex_ticket_enabled,
-      openai_codex_ticket_allow_without_ticket: form.openai_codex_ticket_allow_without_ticket,
       openai_codex_ticket_prompt_template:
         form.openai_codex_ticket_prompt_template === form.openai_codex_ticket_prompt_template_default
           ? ""
@@ -12096,7 +12059,6 @@ async function saveSettings() {
       adminAPI.settings.updateSettings(payload),
     );
     settingsSaved = true;
-    if (cadence?.isDirty?.()) await cadence.save();
     for (const [key, value] of Object.entries(updated)) {
       if (key === "openai_fast_policy_settings") continue;
       if (value !== null && value !== undefined) {
@@ -12182,7 +12144,7 @@ async function saveSettings() {
     }
   } catch (error: unknown) {
     if (settingsSaved) {
-      appStore.showError(`${localText("普通设置已保存，但打票间隔或其他附加设置保存失败：", "Settings saved, but a separate setting failed: ")}${extractApiErrorMessage(error, t("admin.settings.failedToSave"))}`);
+      appStore.showError(`${localText("普通设置已保存，但附加设置保存失败：", "Settings saved, but a separate setting failed: ")}${extractApiErrorMessage(error, t("admin.settings.failedToSave"))}`);
       return;
     }
     // 用户取消 step-up 验证：静默返回，不弹错误

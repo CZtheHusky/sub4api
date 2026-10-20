@@ -549,8 +549,7 @@ func (s *OpenAIGatewayService) clearOpenAIAccountRuntimeBlockIfUnchanged(account
 // are left alone. This is fail-open if a DB write failed or the snapshot has
 // not caught up yet: empty cooldown fields drop the local account-level block.
 // requireCompact 必须与 Forward 的 /responses/compact 判定同源（两侧都来自
-// IsOpenAIResponsesCompactPath）：门票门控按真正出站的模型名判定，否则 compact
-// 请求会被按客户端原始模型误拦（见 openAICodexTicketOutboundModel）。
+// IsOpenAIResponsesCompactPath）。
 func (s *OpenAIGatewayService) isOpenAIAccountRequestRuntimeBlocked(account *Account, requestedModel string, requireCompact bool) bool {
 	return s.isOpenAIAccountRequestRuntimeBlockedContext(context.Background(), account, requestedModel, requireCompact)
 }
@@ -559,23 +558,36 @@ func (s *OpenAIGatewayService) isOpenAIAccountRequestRuntimeBlockedContext(ctx c
 	if s == nil {
 		return false
 	}
-	outboundModel := s.openAICodexTicketOutboundModel(account, requestedModel, requireCompact)
-	// Capability rechecks may temporarily pass requireCompact=false. Ticket checks
-	// must still follow the actual forwarded model, including channel mappings.
-	if forward, ok := openAIForwardModelFromContext(ctx); ok {
-		outboundModel = s.openAICodexTicketOutboundModel(account, forward.model, forward.useCompactModelMapping)
-	}
-	if s.openAICodexTicketBlocksAccount(account, outboundModel) {
-		return true
-	}
 	snapshot := s.peekOpenAIAccountRuntimeBlock(account)
 	if snapshot.blocked {
+		if codexDiagnosticExemptsAccountBlock(ctx, account) {
+			// 复查豁免：仅放行本诊断请求，进程内封锁与持久化封锁都原样保留。
+			return s.isOpenAIAccountModelRuntimeBlocked(account, requestedModel)
+		}
 		if accountPersistedSchedulingCooldownActive(account) {
 			return true
 		}
 		s.clearOpenAIAccountRuntimeBlockIfUnchanged(account.ID, snapshot)
 	}
 	return s.isOpenAIAccountModelRuntimeBlocked(account, requestedModel)
+}
+
+// codexDiagnosticExemptsAccountBlock 复查豁免：被 auto_degradation_check 封锁的
+// 账号必须能被降智探测打到，否则永远无法复查解封。仅当账号唯一的活跃冷却就是
+// 本功能写入的临时停调时成立；503 规则/过载/限流重置等其它来源封锁不豁免。
+func codexDiagnosticExemptsAccountBlock(ctx context.Context, account *Account) bool {
+	if !isCodexTicketDiagnostic(ctx) || account == nil {
+		return false
+	}
+	now := time.Now()
+	if account.OverloadUntil != nil && now.Before(*account.OverloadUntil) {
+		return false
+	}
+	if account.RateLimitResetAt != nil && now.Before(*account.RateLimitResetAt) {
+		return false
+	}
+	return account.TempUnschedulableUntil != nil && now.Before(*account.TempUnschedulableUntil) &&
+		IsCodexAutoDegradationCheckReason(account.TempUnschedulableReason)
 }
 
 func (s *OpenAIGatewayService) recordOpenAIOAuth429() {

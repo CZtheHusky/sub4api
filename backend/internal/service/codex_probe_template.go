@@ -282,3 +282,13 @@ func (template *CodexProbeTemplate) render(model, prompt, timezone string, ident
 	encoded, err := json.Marshal(body)
 	return encoded, headers, err
 }
+
+// BuildCodexDiagnosticRequest supplies a normal gateway ingress request. The
+// gateway still owns authentication, scheduling and final account identity scoping.
+func (s *OpenAIGatewayService) BuildCodexDiagnosticRequest(ctx context.Context, accountID int64, model string, challenge ModelTraceChallenge) ([]byte, http.Header, error) {
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil || account == nil {
+		return nil, nil, ErrCodexProbeIdentity
+	}
+	return s.buildCodexProbeRequest(ctx, account, model, challenge)
+}
