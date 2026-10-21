@@ -49,9 +49,15 @@ type effortProbeUpstream struct {
 	req      *http.Request
 	proxyURL string
 	resp     *http.Response
+	calls    int
+	beforeDo func()
 }
 
 func (u *effortProbeUpstream) Do(req *http.Request, proxyURL string, _ int64, _ int) (*http.Response, error) {
+	u.calls++
+	if u.beforeDo != nil {
+		u.beforeDo()
+	}
 	u.req, u.proxyURL = req, proxyURL
 	return u.resp, nil
 }

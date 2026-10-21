@@ -4,6 +4,10 @@ export interface TicketAttempt {
   id: number
   account_id: number
   model: string
+  safety_buffering_enabled?: boolean | null
+  safety_buffering_faster_model?: string
+  turn_state_len?: number | null
+  transport?: 'ws' | 'http' | ''
   occurred_at: string
   outcome: string
   trigger?: string
@@ -25,6 +29,10 @@ export interface TicketAttempt {
 
 export interface TicketDiagnostic {
   model: string
+  safety_buffering_enabled?: boolean | null
+  safety_buffering_faster_model?: string
+  turn_state_len?: number | null
+  transport?: 'ws' | 'http' | ''
   status: 'normal' | 'degraded' | 'uncertain' | 'failed'
   reason?: string
   predicted_model?: string
@@ -52,7 +60,7 @@ export async function diagnose(id: number, models: string[], signal?: AbortSigna
   return data
 }
 
-// 400 effort 快速探针：minimal 档校验层 400，报错档位列表含 none 即降智，零 token 消耗
+// Effort probe: the expected minimal-effort rejection supplies the verdict.
 export async function effortProbe(id: number, models: string[], signal?: AbortSignal): Promise<{ items: TicketDiagnostic[]; canceled: boolean }> {
   const { data } = await apiClient.post(`${base(id)}/codex-effort-probe`, { models }, { timeout: Math.max(60000, models.length * 30000), signal })
   return data

@@ -46,12 +46,16 @@ type codexDiagnosticItem struct {
 }
 
 type codexEffortProbeItem struct {
-	Model            string   `json:"model"`
-	Status           string   `json:"status"`
-	Reason           string   `json:"reason,omitempty"`
-	HTTPStatus       int      `json:"http_status,omitempty"`
-	DurationMS       int      `json:"duration_ms,omitempty"`
-	SupportedEfforts []string `json:"supported_efforts,omitempty"`
+	Model                      string   `json:"model"`
+	Status                     string   `json:"status"`
+	Reason                     string   `json:"reason,omitempty"`
+	HTTPStatus                 int      `json:"http_status,omitempty"`
+	DurationMS                 int      `json:"duration_ms,omitempty"`
+	SupportedEfforts           []string `json:"supported_efforts,omitempty"`
+	SafetyBufferingEnabled     *bool    `json:"safety_buffering_enabled,omitempty"`
+	SafetyBufferingFasterModel string   `json:"safety_buffering_faster_model,omitempty"`
+	TurnStateLen               *int     `json:"turn_state_len,omitempty"`
+	Transport                  string   `json:"transport,omitempty"`
 }
 
 func codexDiagnosticAccountID(c *gin.Context) (int64, bool) {
@@ -204,7 +208,7 @@ func validateCodexDiagnosticModels(c *gin.Context, requested []string, allowlist
 // EffortProbeCodexModels 快速降智检测：400 effort 探针，逐模型直连上游发送
 // reasoning.effort="minimal"，从校验层 400 报错的档位列表判定降智（含 none 即
 // 降智）。仅支持 astra 系列（CodexEffortProbeModels）——判据只在 gpt-6-astra
-// 上验证过。单请求约 1s、零 token 消耗，结果与指纹诊断共用探测历史。
+// 上验证过。预期止步于参数校验；结果与指纹诊断共用探测历史。
 func (h *AccountHandler) EffortProbeCodexModels(c *gin.Context) {
 	accountID, ok := codexDiagnosticAccountID(c)
 	if !ok {
@@ -235,6 +239,8 @@ func (h *AccountHandler) EffortProbeCodexModels(c *gin.Context) {
 		results = append(results, codexEffortProbeItem{
 			Model: probe.Model, Status: probe.Status, Reason: probe.Reason,
 			HTTPStatus: probe.HTTPStatus, DurationMS: probe.DurationMS, SupportedEfforts: probe.SupportedEfforts,
+			SafetyBufferingEnabled: probe.SafetyBufferingEnabled, SafetyBufferingFasterModel: probe.SafetyBufferingFasterModel,
+			TurnStateLen: probe.TurnStateLen, Transport: probe.Transport,
 		})
 		if h.codexTicketAttempts != nil {
 			attempt := codexEffortProbeAttempt(accountID, started, probe)
@@ -256,7 +262,9 @@ func codexEffortProbeAttempt(accountID int64, started time.Time, probe service.C
 		AccountID: accountID, Model: probe.Model,
 		OccurredAt: started, Outcome: "error", Trigger: "diagnostic",
 		DurationMS: probe.DurationMS, ReasonCode: probe.Reason,
-		VerificationMethod: "effort_probe",
+		VerificationMethod:     "effort_probe",
+		SafetyBufferingEnabled: probe.SafetyBufferingEnabled, SafetyBufferingFasterModel: probe.SafetyBufferingFasterModel,
+		TurnStateLen: probe.TurnStateLen, Transport: probe.Transport,
 	}
 	if probe.HTTPStatus > 0 {
 		status := probe.HTTPStatus
