@@ -160,7 +160,7 @@ GPT-6.1 Sol is reasoning-only: explicit `none`, `minimal` or disabled thinking i
 ### 上游过载冷却与降智检测
 
 - OpenAI 容量降载（`server_is_overloaded`、"Our servers are currently overloaded" 等）不再走请求级早退：账号配置的 `temp_unschedulable_rules` 照常命中并写入模型级冷却（例如 503 + overloaded → 30 分钟），同账号有界重试与切号流程保持不变。规则按真实上游状态码匹配，HTTP 200 + 流内降载（SSE `error` / `response.failed`）不会命中 503 规则；`RequestScopedTransient` 仍只约束通用临时摘号，不约束用户自定义规则。
-- 降智检测是"号原生"：`RunCodexNativeDiagnostic`（`internal/service/codex_ticket_diagnostic.go`）用目标账号自身的 access token 直接打 ModelTrace 探测，管理员不再选择计费 Key，探测也不再回环进公开网关。打票代理池存在时与打票共用出口，未配置代理时直连。失败按 `credentials` / `proxy_unavailable` / `http_status` / `timeout` / `response_incomplete` / `template_invalid` 等原因返回，状态一律 `failed`，不参与降智判定。
+- ModelTrace 降智检测通过 `CodexGatewayDiagnosticRunner.RunGatewayDiagnostic`（`internal/service/codex_diagnostic_gateway.go`）在进程内进入网关中间件链，使用内部诊断令牌和合成身份，调度钉住目标账号；上游转发复用当前网关的账号传输与代理处理，打票专用代理池已移除。诊断不产生网关 usage/billing 记录、不消耗用户在网关内的额度，但不代表 ModelTrace 在上游零 token。失败原因和错误码以当前 runner/handler 返回为准。此说明专指 ModelTrace 网关诊断，effort probe 不经过同一入口。
 - `gpt-6.1-sol` 可参与检测，但指纹库暂无该分类：命中同系列参考类 `gpt-6-sol` 判「不确定」，命中其它 GPT 类判「疑似降智」，精确命中才判「正常」；库补上分类后自动回到精确匹配。
 - 自动降智检测（设置键 `codex_auto_degradation_check`）默认关闭。开启后按 `interval_minutes` 顺序探测到期的 OpenAI OAuth / Setup Token 活跃账号（单轮最多 8 个、每发 120 秒、双重 leader lock），状态写入 `accounts.extra` 的 `codex_degradation_check`：降智时用带 `source=auto_degradation_check` 标记的 reason 写临时停调并把复查时间对齐到封锁到期，仍降智则续期；`normal`/`uncertain` 且当前封锁带该标记时调用 `RateLimitService.ClearTempUnschedulable` 解封（会同时清掉该账号的模型级限流与 Redis 临时停调缓存）；`failed` 既不加封也不解封，其它来源的封锁永远保留。候选查询刻意不按 temp_unschedulable 过滤，否则被封锁的账号永远不会被复查。
 
