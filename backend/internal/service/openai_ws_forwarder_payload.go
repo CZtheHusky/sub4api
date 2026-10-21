@@ -872,6 +872,16 @@ func buildOpenAIWSCurrentTurnRetryPayload(
 	return retryPayload, true, nil
 }
 
+// Item references and unpaired tool results rely on context absent from this input.
+func openAIWSReplayInputSelfContained(items []json.RawMessage) bool {
+	for _, item := range items {
+		if gjson.GetBytes(item, "type").String() == "item_reference" {
+			return false
+		}
+	}
+	return !openAIWSRawItemsHasFunctionCallOutput(items) || openAIWSRawItemsHaveToolCallContextForOutputs(items)
+}
+
 func shouldKeepIngressPreviousResponseID(
 	previousPayload []byte,
 	currentPayload []byte,

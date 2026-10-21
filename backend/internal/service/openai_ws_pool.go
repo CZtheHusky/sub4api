@@ -19,6 +19,8 @@ import (
 
 const (
 	openAIWSConnMaxAge          = 60 * time.Minute
+	openAIWSConnRotationMargin  = 5 * time.Minute
+	openAIWSConnRotateAge       = openAIWSConnMaxAge - openAIWSConnRotationMargin
 	openAIWSConnHealthCheckIdle = 90 * time.Second
 	// 仅对没有常驻读循环的连接实现生效：这类连接空闲时无人应答上游 ping，须在
 	// 上游保活窗口到期前回收。coder/websocket 连接由池常驻读循环应答 ping，不受此阈值约束。
@@ -756,6 +758,15 @@ func (c *openAIWSConn) age(now time.Time) time.Duration {
 	return now.Sub(created)
 }
 
+// Strict continuations may use the rotation margin, but never the hard limit.
+func (c *openAIWSConn) canStartTurn(now time.Time, strict bool) bool {
+	limit := openAIWSConnRotateAge
+	if strict {
+		limit = openAIWSConnMaxAge
+	}
+	return c.age(now) < limit
+}
+
 func (c *openAIWSConn) isLeased() bool {
 	if c == nil {
 		return false
@@ -1113,15 +1124,30 @@ func (p *openAIWSConnPool) Acquire(ctx context.Context, req openAIWSAcquireReque
 		p.metrics.acquireTotal.Add(1)
 	}
 	queueWait := &openAIWSAcquireQueueWait{}
-	lease, err := p.acquire(ctx, cloneOpenAIWSAcquireRequest(req), 0, queueWait)
-	if lease != nil && queueWait.rewoken {
-		// 广播重选经 tryAcquire 拿令牌，不像排队分支那样在取得令牌后检查取消，
-		// 这里补上复查：上下文已取消就归还令牌并按取消返回。
+	var lease *openAIWSConnLease
+	var err error
+	for {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+		lease, err = p.acquire(ctx, cloneOpenAIWSAcquireRequest(req), 0, queueWait)
+		if lease == nil {
+			break
+		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			lease.Release()
 			return nil, ctxErr
 		}
+		// Queueing and health checks may cross an age boundary after selection.
+		if lease.conn.canStartTurn(time.Now(), req.ForcePreferredConn) {
+			break
+		}
+		lease.Release()
+		if req.ForcePreferredConn {
+			return nil, errOpenAIWSPreferredConnUnavailable
+		}
 	}
+
 	if lease != nil && queueWait.total > 0 {
 		lease.queueWait = queueWait.total
 		p.metrics.acquireQueueWaitMs.Add(queueWait.total.Milliseconds())
@@ -1176,7 +1202,7 @@ retryAcquire:
 				return nil, errOpenAIWSPreferredConnUnavailable
 			}
 			preferredConn, ok := ap.conns[preferredConnID]
-			if !ok || !preferredConn.matchesHandshakeCompatibility(compatibility) {
+			if !ok || !preferredConn.matchesHandshakeCompatibility(compatibility) || !preferredConn.canStartTurn(now, true) {
 				p.recordConnPickDuration(time.Since(pickStartedAt))
 				ap.mu.Unlock()
 				closeOpenAIWSConns(evicted)
@@ -1268,7 +1294,7 @@ retryAcquire:
 		}
 
 		if preferredConnID != "" {
-			if conn, ok := ap.conns[preferredConnID]; ok && conn.matchesHandshakeCompatibility(compatibility) && conn.tryAcquire() {
+			if conn, ok := ap.conns[preferredConnID]; ok && conn.matchesHandshakeCompatibility(compatibility) && conn.canStartTurn(now, false) && conn.tryAcquire() {
 				connPick := time.Since(pickStartedAt)
 				p.recordConnPickDuration(connPick)
 				ap.mu.Unlock()
@@ -1322,7 +1348,7 @@ retryAcquire:
 		}
 		if routingAffinity == "" || len(ap.conns)+ap.creating >= effectiveMaxConns {
 			for _, conn := range ap.conns {
-				if conn == nil || conn == best || !conn.matchesHandshakeCompatibility(compatibility) {
+				if conn == nil || conn == best || !conn.matchesHandshakeCompatibility(compatibility) || !conn.canStartTurn(now, false) {
 					continue
 				}
 				if conn.tryAcquire() {
@@ -1353,7 +1379,10 @@ retryAcquire:
 
 	if !req.ForceNewConn && len(ap.conns)+ap.creating >= effectiveMaxConns {
 		affine := p.pickLeastBusyConnWithRoutingAffinityLocked(ap, compatibility, routingAffinity)
-		if idle := p.pickOldestIdleConnWithoutHandshakeCompatibilityLocked(ap, compatibility); idle != nil {
+		if idle := p.pickOldestIdleConnForReplacementLocked(ap, compatibility); idle != nil {
+			if !idle.canStartTurn(now, false) {
+				logOpenAIWSModeInfo("lifetime_retire path=pool account_id=%d old_conn_id=%s age_ms=%d rotate_age_ms=%d reason=idle_replacement", accountID, idle.id, idle.age(now).Milliseconds(), openAIWSConnRotateAge.Milliseconds())
+			}
 			delete(ap.conns, idle.id)
 			evicted = append(evicted, idle)
 			p.metrics.scaleDownTotal.Add(1)
@@ -1566,7 +1595,7 @@ func (p *openAIWSConnPool) pickOldestIdleConnLocked(ap *openAIWSAccountPool) *op
 	return oldest
 }
 
-func (p *openAIWSConnPool) pickOldestIdleConnWithoutHandshakeCompatibilityLocked(
+func (p *openAIWSConnPool) pickOldestIdleConnForReplacementLocked(
 	ap *openAIWSAccountPool,
 	compatibility openAIWSHandshakeCompatibilityKey,
 ) *openAIWSConn {
@@ -1576,7 +1605,7 @@ func (p *openAIWSConnPool) pickOldestIdleConnWithoutHandshakeCompatibilityLocked
 	var oldest *openAIWSConn
 	for _, conn := range ap.conns {
 		if conn == nil ||
-			conn.matchesHandshakeCompatibility(compatibility) ||
+			(conn.matchesHandshakeCompatibility(compatibility) && conn.canStartTurn(time.Now(), false)) ||
 			conn.isLeased() || conn.waiters.Load() > 0 || p.isConnPinnedLocked(ap, conn.id) {
 			continue
 		}
@@ -1679,7 +1708,7 @@ func (p *openAIWSConnPool) cleanupAccountLocked(ap *openAIWSAccountPool, now tim
 			p.metrics.scaleDownTotal.Add(1)
 			continue
 		}
-		if maxAge > 0 && !conn.isLeased() && conn.age(now) > maxAge {
+		if maxAge > 0 && !conn.isLeased() && conn.age(now) >= maxAge {
 			delete(ap.conns, id)
 			if len(ap.pinnedConns) > 0 {
 				delete(ap.pinnedConns, id)
@@ -1747,7 +1776,7 @@ func (p *openAIWSConnPool) pickLeastBusyConnLocked(
 	}
 	preferredConnID = stringsTrim(preferredConnID)
 	if preferredConnID != "" {
-		if conn, ok := ap.conns[preferredConnID]; ok && conn.matchesHandshakeCompatibility(compatibility) {
+		if conn, ok := ap.conns[preferredConnID]; ok && conn.matchesHandshakeCompatibility(compatibility) && conn.canStartTurn(time.Now(), false) {
 			return conn
 		}
 	}
@@ -1755,7 +1784,7 @@ func (p *openAIWSConnPool) pickLeastBusyConnLocked(
 	var bestWaiters int32
 	var bestLastUsed time.Time
 	for _, conn := range ap.conns {
-		if conn == nil || !conn.matchesHandshakeCompatibility(compatibility) {
+		if conn == nil || !conn.matchesHandshakeCompatibility(compatibility) || !conn.canStartTurn(time.Now(), false) {
 			continue
 		}
 		waiters := conn.waiters.Load()
@@ -1785,6 +1814,7 @@ func (p *openAIWSConnPool) pickLeastBusyConnWithRoutingAffinityLocked(
 	for _, conn := range ap.conns {
 		if conn == nil ||
 			!conn.matchesHandshakeCompatibility(compatibility) ||
+			!conn.canStartTurn(time.Now(), false) ||
 			!conn.matchesRoutingAffinity(routingAffinity) {
 			continue
 		}

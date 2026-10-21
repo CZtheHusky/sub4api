@@ -309,6 +309,7 @@ type OpenAIForwardResult struct {
 	hostedSearchRoundCosts       []*CostBreakdown
 	wsReplayInput                []json.RawMessage
 	wsReplayInputExists          bool
+	wsReplayComplete             bool
 	wsAccountFailoverReplayInput []json.RawMessage
 }
 
@@ -805,6 +806,7 @@ func classifyOpenAIWSReconnectReason(err error) (string, bool) {
 		"error_event",
 		"upstream_error_event",
 		"ws_connection_limit_reached",
+		"conn_rotate",
 		"missing_final_response":
 		return reason, true
 	default:
@@ -1003,6 +1005,11 @@ func (s *OpenAIGatewayService) openAIWSRetryBackoff(attempt int) time.Duration {
 		return 0
 	}
 	return withJitter
+}
+
+// The first attempt and backoff count; this only admits the next attempt, never cuts a stream.
+func openAIWSRetryBudgetAllows(elapsed, backoff, budget time.Duration) bool {
+	return budget <= 0 || elapsed+backoff <= budget
 }
 
 func (s *OpenAIGatewayService) openAIWSRetryTotalBudget() time.Duration {

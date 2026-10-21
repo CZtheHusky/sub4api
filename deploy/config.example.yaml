@@ -392,8 +392,8 @@ gateway:
     retry_backoff_max_ms: 2000
     # 抖动比例（0-1）
     retry_jitter_ratio: 0.2
-    # 单次请求 WS 重试总预算（毫秒）；建议设置为有限值，避免重试拉高 TTFT 长尾
-    retry_total_budget_ms: 5000
+    # 从首次 WS 尝试计时，含首轮耗时和退避；限制启动下一次尝试，不截断已启动的流；0 不限
+    retry_total_budget_ms: 30000
     # payload_schema 日志采样率（0-1）；降低热路径日志放大
     payload_log_sample_rate: 0.2
     # 调度与粘连参数

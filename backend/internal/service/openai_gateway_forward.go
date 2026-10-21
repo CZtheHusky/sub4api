@@ -873,8 +873,9 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 		agentTaskRecoveryTried := false
 		wsPrevResponseRecoveryTried := false
 		wsInvalidEncryptedContentRecoveryTried := false
+		wsPreserveContinuation := false
 		recoverPrevResponseNotFound := func(attempt int) bool {
-			if wsPrevResponseRecoveryTried {
+			if wsPrevResponseRecoveryTried || wsPreserveContinuation {
 				return false
 			}
 			previousResponseID := openAIWSPayloadString(wsReqBody, "previous_response_id")
@@ -906,7 +907,7 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 			return true
 		}
 		recoverInvalidEncryptedContent := func(attempt int) bool {
-			if wsInvalidEncryptedContentRecoveryTried {
+			if wsInvalidEncryptedContentRecoveryTried || wsPreserveContinuation {
 				return false
 			}
 			// 写入 lineage 后，同一失效密文在后续 turn 进场时被预剥离，不再重复
@@ -950,6 +951,14 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 		retryStartedAt := time.Now()
 	wsRetryLoop:
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
+			if ctx.Err() != nil {
+				wsErr = ctx.Err()
+				break
+			}
+			if attempt > 1 && !openAIWSRetryBudgetAllows(time.Since(retryStartedAt), 0, retryBudget) {
+				s.recordOpenAIWSRetryExhausted()
+				break
+			}
 			wsAttempts = attempt
 			wsResult, wsErr = s.forwardOpenAIWSV2(
 				ctx,
@@ -981,6 +990,13 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 			}
 
 			reason, retryable := classifyOpenAIWSReconnectReason(wsErr)
+			var fallbackErr *openAIWSFallbackError
+			if errors.As(wsErr, &fallbackErr) && fallbackErr.PreserveContinuation {
+				wsPreserveContinuation = true
+			}
+			if (reason == "ws_connection_limit_reached" || reason == "conn_rotate") && openAIWSPayloadString(wsReqBody, "previous_response_id") != "" {
+				wsPreserveContinuation = true
+			}
 			if reason != "" {
 				wsLastFailureReason = reason
 			}
@@ -994,7 +1010,7 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 			}
 			if retryable && attempt < maxAttempts {
 				backoff := s.openAIWSRetryBackoff(attempt)
-				if retryBudget > 0 && time.Since(retryStartedAt)+backoff > retryBudget {
+				if !openAIWSRetryBudgetAllows(time.Since(retryStartedAt), backoff, retryBudget) {
 					s.recordOpenAIWSRetryExhausted()
 					logOpenAIWSModeInfo(
 						"reconnect_budget_exhausted account_id=%d attempts=%d max_retries=%d reason=%s elapsed_ms=%d budget_ms=%d",
@@ -1009,12 +1025,14 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 				}
 				s.recordOpenAIWSRetryAttempt(backoff)
 				logOpenAIWSModeInfo(
-					"reconnect_retry account_id=%d retry=%d max_retries=%d reason=%s backoff_ms=%d",
+					"reconnect_retry account_id=%d retry=%d max_retries=%d reason=%s backoff_ms=%d elapsed_ms=%d budget_ms=%d",
 					account.ID,
 					attempt,
 					openAIWSReconnectRetryLimit,
 					normalizeOpenAIWSLogValue(reason),
 					backoff.Milliseconds(),
+					time.Since(retryStartedAt).Milliseconds(),
+					retryBudget.Milliseconds(),
 				)
 				if backoff > 0 {
 					timer := time.NewTimer(backoff)

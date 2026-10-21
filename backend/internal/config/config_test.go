@@ -521,8 +521,8 @@ func TestLoadDefaultOpenAIWSConfig(t *testing.T) {
 	if cfg.Gateway.OpenAIWS.RetryJitterRatio != 0.2 {
 		t.Fatalf("Gateway.OpenAIWS.RetryJitterRatio = %v, want 0.2", cfg.Gateway.OpenAIWS.RetryJitterRatio)
 	}
-	if cfg.Gateway.OpenAIWS.RetryTotalBudgetMS != 5000 {
-		t.Fatalf("Gateway.OpenAIWS.RetryTotalBudgetMS = %d, want 5000", cfg.Gateway.OpenAIWS.RetryTotalBudgetMS)
+	if cfg.Gateway.OpenAIWS.RetryTotalBudgetMS != 30000 {
+		t.Fatalf("Gateway.OpenAIWS.RetryTotalBudgetMS = %d, want 30000", cfg.Gateway.OpenAIWS.RetryTotalBudgetMS)
 	}
 	if cfg.Gateway.OpenAIWS.PayloadLogSampleRate != 0.2 {
 		t.Fatalf("Gateway.OpenAIWS.PayloadLogSampleRate = %v, want 0.2", cfg.Gateway.OpenAIWS.PayloadLogSampleRate)
@@ -2675,6 +2675,18 @@ func TestLoadSimpleModeAutoCreateDefaultGroups(t *testing.T) {
 					require.Equal(t, tt.want, cfg.SimpleMode.AutoCreateDefaultGroups)
 				})
 			}
+		})
+	}
+}
+
+func TestOpenAIWSRetryTotalBudgetExplicitValues(t *testing.T) {
+	for _, value := range []int{0, 5000, 30000} {
+		t.Run(fmt.Sprint(value), func(t *testing.T) {
+			resetViperWithJWTSecret(t)
+			t.Setenv("GATEWAY_OPENAI_WS_RETRY_TOTAL_BUDGET_MS", fmt.Sprint(value))
+			cfg, err := Load()
+			require.NoError(t, err)
+			require.Equal(t, value, cfg.Gateway.OpenAIWS.RetryTotalBudgetMS)
 		})
 	}
 }
