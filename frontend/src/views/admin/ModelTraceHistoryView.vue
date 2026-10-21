@@ -107,6 +107,7 @@
             </div>
           </template>
         </dl>
+        <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.codexDiagnosticDialog.observationHint') }}</p>
       </div>
     </div>
     <!-- 删除确认 -->
@@ -275,6 +276,10 @@ const detailRows = computed<Record<string, string>>(() => {
     [t('admin.accounts.modeltraceHistory.colProxy')]: row.proxy_name || '—',
     [t('admin.accounts.modeltraceHistory.detailReason')]: row.reason_code || '—',
     [t('admin.accounts.modeltraceHistory.detailVerification')]: row.verification_method || '—',
+    [t('admin.accounts.codexDiagnosticDialog.transport')]: row.transport || '—',
+    [t('admin.accounts.codexDiagnosticDialog.safetyBufferingEnabled')]: row.safety_buffering_enabled == null ? '—' : String(row.safety_buffering_enabled),
+    [t('admin.accounts.codexDiagnosticDialog.safetyBufferingFasterModel')]: row.safety_buffering_faster_model || '—',
+    [t('admin.accounts.codexDiagnosticDialog.turnStateLen')]: row.turn_state_len == null ? '—' : String(row.turn_state_len),
     [t('admin.accounts.modeltraceHistory.colBank')]: row.fingerprint_commit || '—'
   }
 })

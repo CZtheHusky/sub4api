@@ -98,6 +98,13 @@
                 <div class="sm:col-span-2"><dt class="text-gray-500 dark:text-dark-400">{{ text('supportedEfforts') }}</dt><dd class="mt-1 break-all font-mono text-gray-800 [overflow-wrap:anywhere] dark:text-dark-200">{{ entry.result.supported_efforts.join(' · ') }}</dd></div>
                 <div v-if="entry.result.duration_ms"><dt class="text-gray-500 dark:text-dark-400">{{ text('durationMs') }}</dt><dd class="mt-1 text-gray-800 dark:text-dark-200">{{ entry.result.duration_ms }} ms</dd></div>
               </template>
+              <template v-if="diagnosticRun.method === 'effort'">
+                <div><dt class="text-gray-500 dark:text-dark-400">{{ text('transport') }}</dt><dd class="mt-1">{{ entry.result.transport || '—' }}</dd></div>
+                <div><dt class="text-gray-500 dark:text-dark-400">{{ text('safetyBufferingEnabled') }}</dt><dd class="mt-1">{{ entry.result.safety_buffering_enabled ?? text('notCollected') }}</dd></div>
+                <div><dt class="text-gray-500 dark:text-dark-400">{{ text('safetyBufferingFasterModel') }}</dt><dd class="mt-1 break-all">{{ entry.result.safety_buffering_faster_model || text('notCollected') }}</dd></div>
+                <div><dt class="text-gray-500 dark:text-dark-400">{{ text('turnStateLen') }}</dt><dd class="mt-1">{{ entry.result.turn_state_len ?? text('notCollected') }}</dd></div>
+                <p class="text-xs text-gray-500 dark:text-dark-400 sm:col-span-2">{{ text('observationHint') }}</p>
+              </template>
               <div v-if="entry.result.reason" class="sm:col-span-2"><dt class="text-gray-500 dark:text-dark-400">{{ text('reason') }}</dt><dd class="mt-1 whitespace-pre-wrap break-words text-gray-800 [overflow-wrap:anywhere] dark:text-dark-200">{{ entry.result.reason === 'template_invalid' ? text('templateInvalid') : entry.result.reason }}</dd></div>
               <div v-if="entry.result.http_status" class="sm:col-span-2"><dt class="text-gray-500 dark:text-dark-400">{{ text('httpStatus') }}</dt><dd class="mt-1 break-all text-gray-800 dark:text-dark-200">HTTP {{ entry.result.http_status }}</dd></div>
               <div class="sm:col-span-2"><dt class="text-gray-500 dark:text-dark-400">{{ text('fingerprint') }}</dt><dd class="mt-1 break-all font-mono text-gray-800 dark:text-dark-200">{{ diagnosticRun.fingerprintCommit || '—' }}</dd></div>

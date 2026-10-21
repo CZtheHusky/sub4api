@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MACOS-DO/sub4api/internal/service"
 
@@ -110,4 +111,73 @@ func TestEffortProbeCodexModelsValidation(t *testing.T) {
 	// 未接线探针
 	w = effortProbeRequest(t, newEffortProbeHandler(nil, nil), "41", `{"models":["gpt-6-astra"]}`)
 	require.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+func TestEffortProbeWSProbeFieldsReachResponseAndHistory(t *testing.T) {
+	enabled := false
+	length := 0
+	probe := service.CodexEffortProbeResult{Model: "gpt-6-astra", Status: "normal", HTTPStatus: 400, Transport: "ws", SafetyBufferingEnabled: &enabled, SafetyBufferingFasterModel: "marker", TurnStateLen: &length}
+	prober := &fakeEffortProber{results: map[string]service.CodexEffortProbeResult{"gpt-6-astra": probe}}
+	attempts := &fakeCodexTicketAttemptRepo{}
+	w := effortProbeRequest(t, newEffortProbeHandler(prober, attempts), "41", `{"models":["gpt-6-astra"]}`)
+	require.Equal(t, 200, w.Code)
+	var envelope struct {
+		Data struct {
+			Items []codexEffortProbeItem `json:"items"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &envelope))
+	require.Len(t, envelope.Data.Items, 1)
+	item := envelope.Data.Items[0]
+	require.NotNil(t, item.SafetyBufferingEnabled)
+	require.False(t, *item.SafetyBufferingEnabled)
+	require.Equal(t, 0, *item.TurnStateLen)
+	require.Equal(t, "marker", item.SafetyBufferingFasterModel)
+	require.Equal(t, "ws", item.Transport)
+	require.Len(t, attempts.inserted, 1)
+	require.Equal(t, probe.SafetyBufferingEnabled, attempts.inserted[0].SafetyBufferingEnabled)
+	require.Equal(t, probe.TurnStateLen, attempts.inserted[0].TurnStateLen)
+	require.Equal(t, "ws", attempts.inserted[0].Transport)
+	require.Equal(t, "marker", attempts.inserted[0].SafetyBufferingFasterModel)
+	// Map alternating transports in both orders, preserving one independent history row per model.
+	for _, order := range [][]service.CodexEffortProbeResult{{probe, {Model: "other", Status: "normal", Transport: "http"}}, {{Model: "other", Status: "normal", Transport: "http"}, probe}} {
+		for _, result := range order {
+			a := codexEffortProbeAttempt(41, time.Now(), result)
+			require.Equal(t, result.Transport, a.Transport)
+			require.Equal(t, result.SafetyBufferingEnabled, a.SafetyBufferingEnabled)
+			require.Equal(t, result.TurnStateLen, a.TurnStateLen)
+		}
+	}
+}
+
+type canceledWSProbe struct {
+	calls  int
+	cancel context.CancelFunc
+}
+
+func (p *canceledWSProbe) RunCodexEffortProbe(_ context.Context, _ int64, model string) service.CodexEffortProbeResult {
+	p.calls++
+	p.cancel()
+	return service.CodexEffortProbeResult{Model: model, Status: "failed", Reason: "request_failed", Transport: "ws"}
+}
+func TestEffortProbeWSProbeCancellationStopsModelLoop(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	p := &canceledWSProbe{cancel: cancel}
+	attempts := &fakeCodexTicketAttemptRepo{}
+	h := newEffortProbeHandler(p, attempts)
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/accounts/:id/codex-effort-probe", h.EffortProbeCodexModels)
+	models, err := service.CodexEffortProbeModels()
+	require.NoError(t, err)
+	// A canceled caller must stop even when more distinct models become available.
+	body, _ := json.Marshal(map[string]any{"models": models})
+	req := httptest.NewRequest(http.MethodPost, "/accounts/41/codex-effort-probe", strings.NewReader(string(body))).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, 1, p.calls)
+	require.Len(t, attempts.inserted, 1)
+	require.Contains(t, w.Body.String(), `"canceled":true`)
 }

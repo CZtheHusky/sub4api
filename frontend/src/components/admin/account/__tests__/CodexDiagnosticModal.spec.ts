@@ -95,6 +95,32 @@ describe('Codex diagnostic modal', () => {
     wrapper.unmount()
   })
 
+  it.each([
+    { transport: 'ws', safety_buffering_enabled: false, safety_buffering_faster_model: 'marker', turn_state_len: 0 },
+    { transport: 'ws', safety_buffering_enabled: true, turn_state_len: 780 },
+    { transport: 'http' },
+    {}
+  ])('renders effort observations without losing false or unknown: %j', async (observation) => {
+    fingerprint.mockResolvedValue({ commit: 'abc123', models: ['gpt-6-astra'] })
+    effortProbe.mockResolvedValue({ items: [{ model: 'gpt-6-astra', status: 'normal', ...observation }] })
+    const wrapper = mountModal()
+    await flushPromises()
+    configure(wrapper, ['gpt-6-astra'])
+    await nextTick()
+    await wrapper.get('[data-action="quick-start"]').trigger('click')
+    await flushPromises()
+    const row = wrapper.get('[data-model="gpt-6-astra"]')
+    expect(row.attributes('data-status')).toBe('normal')
+    await row.get('button[aria-expanded]').trigger('click')
+    const details = Object.fromEntries(row.findAll('dl > div').map(item => [item.get('dt').text(), item.get('dd').text()]))
+    expect(details['探测通道']).toBe(observation.transport || '—')
+    expect(details['Safety buffering 标记']).toBe(observation.safety_buffering_enabled == null ? '未采集' : String(observation.safety_buffering_enabled))
+    expect(details['Faster model 标记']).toBe(observation.safety_buffering_faster_model || '未采集')
+    expect(details['Turn-state 长度']).toBe(observation.turn_state_len == null ? '未采集' : String(observation.turn_state_len))
+    expect(row.text()).toContain('观测字段不参与降智判定')
+    wrapper.unmount()
+  })
+
   // 快速探针判据只在 astra 系列上验证过：选择里没有 astra 模型时快速检测
   // 必须禁用，不能把未验证的模型送进探针（与后端 astra 白名单一致）。
   it('quick check stays disabled when no astra model is selected', async () => {
