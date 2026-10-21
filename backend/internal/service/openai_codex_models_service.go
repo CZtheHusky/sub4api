@@ -454,6 +454,9 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 	if openai.IsGPT61SolModelSpelling(modelID) {
 		descriptor := configuredCodexGPT61SolDescriptor
 		descriptor.Slug = modelID
+		// The October 12, 2026 Codex/Work default increased to 500k after
+		// the bundled official snapshot. Explicit upstream metadata still wins.
+		descriptor.ContextWindow = 500_000
 		return descriptor
 	}
 	noReasoningLevel := "none"

@@ -1336,7 +1336,7 @@ type GatewayOpenAIWSConfig struct {
 	RetryBackoffMaxMS int `mapstructure:"retry_backoff_max_ms"`
 	// RetryJitterRatio: WS 重试退避抖动比例（0-1）
 	RetryJitterRatio float64 `mapstructure:"retry_jitter_ratio"`
-	// RetryTotalBudgetMS: WS 单次请求重试总预算（毫秒）；0 表示关闭预算限制
+	// RetryTotalBudgetMS: 从首次 WS 尝试开始（含首轮与退避）限制启动下一次尝试，默认 30000ms；0 不限，不截断已启动的流
 	RetryTotalBudgetMS int `mapstructure:"retry_total_budget_ms"`
 	// PayloadLogSampleRate: payload_schema 日志采样率（0-1）
 	PayloadLogSampleRate float64 `mapstructure:"payload_log_sample_rate"`
@@ -2472,7 +2472,7 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_ws.retry_backoff_initial_ms", 120)
 	viper.SetDefault("gateway.openai_ws.retry_backoff_max_ms", 2000)
 	viper.SetDefault("gateway.openai_ws.retry_jitter_ratio", 0.2)
-	viper.SetDefault("gateway.openai_ws.retry_total_budget_ms", 5000)
+	viper.SetDefault("gateway.openai_ws.retry_total_budget_ms", 30000)
 	viper.SetDefault("gateway.openai_ws.payload_log_sample_rate", 0.2)
 	viper.SetDefault("gateway.openai_ws.lb_top_k", 7)
 	viper.SetDefault("gateway.openai_ws.sticky_session_ttl_seconds", 3600)

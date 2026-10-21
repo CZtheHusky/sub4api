@@ -3800,7 +3800,7 @@ func TestGPT61SolCatalogAdvertisesOfficialReasoningAndToolMode(t *testing.T) {
 	require.JSONEq(t, `true`, string(model["use_responses_lite"]))
 	require.JSONEq(t, `"code_mode_only"`, string(model["tool_mode"]))
 	require.JSONEq(t, `true`, string(model["prefer_websockets"]))
-	require.JSONEq(t, `272000`, string(model["context_window"]))
+	require.JSONEq(t, `500000`, string(model["context_window"]))
 	require.JSONEq(t, `872000`, string(model["max_context_window"]))
 	require.JSONEq(t, `"xhigh"`, string(model["multi_agent_reasoning_effort"]))
 	require.JSONEq(t, `"v2"`, string(model["multi_agent_version"]))
@@ -3836,6 +3836,28 @@ func TestGPT61SolAPIKeyCatalogDoesNotEnableOAuthLite(t *testing.T) {
 		require.NoError(t, json.Unmarshal(body, &catalog))
 		require.JSONEq(t, `false`, string(catalog.Models[0]["use_responses_lite"]))
 		require.JSONEq(t, `"low"`, string(catalog.Models[0]["default_reasoning_level"]))
+	}
+}
+
+func TestGPT61SolAPIKeyCatalogContextWindow(t *testing.T) {
+	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"base_url": "https://api.openai.com"}}
+	for _, tc := range []struct {
+		name string
+		body string
+		want int64
+	}{
+		{"missing uses updated default", `{"models":[{"slug":"gpt-6.1-sol"}]}`, 500_000},
+		{"null uses updated default", `{"models":[{"slug":"gpt-6.1-sol","context_window":null}]}`, 500_000},
+		{"lower upstream window is preserved", `{"models":[{"slug":"gpt-6.1-sol","context_window":272000}]}`, 272_000},
+		{"higher upstream window is preserved", `{"models":[{"slug":"gpt-6.1-sol","context_window":1000000,"max_context_window":1000000}]}`, 1_000_000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body, err := completeAPIKeyCodexModelsManifestMetadata([]byte(tc.body), true, account)
+			require.NoError(t, err)
+			models := decodeCodexManifestModels(t, body)
+			require.Len(t, models, 1)
+			require.EqualValues(t, tc.want, models[0]["context_window"])
+		})
 	}
 }
 

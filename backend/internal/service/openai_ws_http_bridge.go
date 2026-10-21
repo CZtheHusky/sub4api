@@ -262,6 +262,7 @@ type openAIWSToolCallReplayCollector struct {
 	seen     map[string]struct{}
 	allItems []json.RawMessage
 	allSeen  map[string]struct{}
+	complete bool
 }
 
 func (c *openAIWSToolCallReplayCollector) AddEvent(eventType string, message []byte) {
@@ -275,9 +276,35 @@ func (c *openAIWSToolCallReplayCollector) AddEvent(eventType string, message []b
 		if !output.IsArray() {
 			return
 		}
+		// Only a terminal output array proves the whole assistant turn was collected.
+		previousItems, previousSeen := c.allItems, c.allSeen
+		c.allItems = nil
+		c.allSeen = nil
+		c.complete = true
 		for _, item := range output.Array() {
+			itemType := item.Get("type").String()
+			if !item.IsObject() || itemType == "" || (item.Get("status").Exists() && item.Get("status").String() != "completed") {
+				c.complete = false
+			}
+			// An opaque ID cannot reconstruct reasoning or hosted-tool state on a new socket.
+			if (itemType == "reasoning" && item.Get("encrypted_content").String() == "") ||
+				(itemType != "message" && itemType != "reasoning" && !isCodexToolCallContextItemType(itemType)) {
+				c.complete = false
+			}
 			c.addAllItem(item)
 			c.addItem(item)
+		}
+		for key := range previousSeen {
+			if _, exists := c.allSeen[key]; !exists {
+				c.complete = false
+			}
+		}
+		if !c.complete {
+			terminalItems := c.allItems
+			c.allItems, c.allSeen = previousItems, previousSeen
+			for _, item := range terminalItems {
+				c.addAllItem(gjson.ParseBytes(item))
+			}
 		}
 	}
 }

@@ -60,6 +60,8 @@ var openAIWSIngressPreflightPingIdle = 20 * time.Second
 type openAIWSFallbackError struct {
 	Reason string
 	Err    error
+	// A replacement connection cannot turn an unproven continuation into a root.
+	PreserveContinuation bool
 }
 
 func (e *openAIWSFallbackError) Error() string {
@@ -172,7 +174,7 @@ func isOpenAIWSIngressTurnRetryable(err error) bool {
 		return false
 	}
 	switch turnErr.stage {
-	case "write_upstream", "read_upstream":
+	case "write_upstream", "read_upstream", "ws_connection_limit_reached":
 		return true
 	default:
 		return false

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MACOS-DO/sub4api/internal/pkg/ctxkey"
 	"github.com/MACOS-DO/sub4api/internal/pkg/logger"
 	"github.com/MACOS-DO/sub4api/internal/util/responseheaders"
 	"github.com/coder/websocket"
@@ -48,6 +49,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	if s == nil || account == nil {
 		return nil, wrapOpenAIWSFallback("invalid_state", errors.New("service or account is nil"))
 	}
+	clientRequestID, _ := ctx.Value(ctxkey.ClientRequestID).(string)
 	responseModelObserver := &upstreamResponseModelObserver{}
 
 	wsURL, err := s.buildOpenAIResponsesWSURL(account)
@@ -161,6 +163,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		}
 	}
 	storeDisabled := s.isOpenAIWSStoreDisabledInRequest(reqBody, account)
+	forcePreferredConn := storeDisabled && previousResponseID != ""
+	replayItems, _, replayInputErr := openAIWSExtractNormalizedInputSequence(payloadAsJSONBytes(payload))
+	lifetimeReplayAllowed := !forcePreferredConn && (previousResponseID != "" || (replayInputErr == nil && openAIWSReplayInputSelfContained(replayItems)))
 	if stateStore != nil && previousResponseID == "" && sessionHash != "" {
 		if connID, ok := stateStore.GetSessionConn(groupID, sessionHash); ok {
 			preferredConnID = connID
@@ -169,6 +174,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	storeDisabledConnMode := s.openAIWSStoreDisabledConnMode()
 	forceNewConnByPolicy := shouldForceNewConnOnStoreDisabled(storeDisabledConnMode, lastFailureReason)
 	forceNewConn := forceNewConnByPolicy && storeDisabled && previousResponseID == "" && sessionHash != "" && preferredConnID == ""
+	if (lastFailureReason == "ws_connection_limit_reached" || lastFailureReason == "conn_rotate") && lifetimeReplayAllowed {
+		forceNewConn = true
+	}
 	wsHeaders, sessionResolution, buildHdrErr := s.buildOpenAIWSHeaders(
 		ctx,
 		c,
@@ -237,8 +245,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		HeadersFactory: func(factoryCtx context.Context, headers http.Header) (http.Header, error) {
 			return s.refreshOpenAIWSAuthHeaders(factoryCtx, account, headers)
 		},
-		PreferredConnID: preferredConnID,
-		ForceNewConn:    forceNewConn,
+		PreferredConnID:    preferredConnID,
+		ForcePreferredConn: forcePreferredConn,
+		ForceNewConn:       forceNewConn,
 		ProxyURL: func() string {
 			if account.ProxyID != nil && account.Proxy != nil {
 				return account.Proxy.URL()
@@ -357,20 +366,31 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		}
 	}
 
-	if err := s.performOpenAIWSGeneratePrewarm(
-		ctx,
-		lease,
-		decision,
-		payload,
-		previousResponseID,
-		reqBody,
-		account,
-		stateStore,
-		groupID,
-	); err != nil {
-		return nil, err
+	if lease.conn.canStartTurn(time.Now(), forcePreferredConn) {
+		if err := s.performOpenAIWSGeneratePrewarm(
+			ctx,
+			lease,
+			decision,
+			payload,
+			previousResponseID,
+			reqBody,
+			account,
+			stateStore,
+			groupID,
+		); err != nil {
+			return nil, err
+		}
 	}
 
+	sendAge := lease.conn.age(time.Now())
+	logOpenAIWSModeInfo("lifetime_send path=v2 account_id=%d attempt=%d conn_id=%s preferred_conn_id=%s selected_age_ms=%d send_age_ms=%d rotate_age_ms=%d reused=%v strict=%v migratable=%v wrote_downstream=false client_request_id=%s", account.ID, attempt, connID, preferredConnID, lease.AgeBefore().Milliseconds(), sendAge.Milliseconds(), openAIWSConnRotateAge.Milliseconds(), lease.Reused(), forcePreferredConn, lifetimeReplayAllowed, truncateOpenAIWSLogValue(clientRequestID, openAIWSIDValueMaxLen))
+	if !lease.conn.canStartTurn(time.Now(), forcePreferredConn) {
+		cleanExit = true // No create was sent; do not break another session's pin.
+		if forcePreferredConn || !lifetimeReplayAllowed {
+			return nil, wrapOpenAIWSFallback("continuation_unavailable", errOpenAIWSPreferredConnUnavailable)
+		}
+		return nil, &openAIWSFallbackError{Reason: "conn_rotate", Err: errors.New("websocket connection reached rotation age"), PreserveContinuation: previousResponseID != ""}
+	}
 	if err := lease.WriteJSONWithContextTimeout(ctx, payload, s.openAIWSWriteTimeout()); err != nil {
 		lease.MarkBroken()
 		logOpenAIWSModeInfo(
@@ -766,7 +786,16 @@ readLoop:
 			// error 事件后连接不再可复用，避免回池后污染下一请求。
 			lease.MarkBroken()
 			if !wroteDownstream && canFallback {
-				return nil, wrapOpenAIWSFallback(fallbackReason, errors.New(errMsg))
+				if fallbackReason == "ws_connection_limit_reached" {
+					logOpenAIWSModeInfo("lifetime_recovery path=v2 account_id=%d attempt=%d old_conn_id=%s age_ms=%d strict=%v migratable=%v wrote_downstream=%v reason=upstream_lifetime client_request_id=%s", account.ID, attempt, connID, lease.conn.age(time.Now()).Milliseconds(), forcePreferredConn, lifetimeReplayAllowed, wroteDownstream, truncateOpenAIWSLogValue(clientRequestID, openAIWSIDValueMaxLen))
+					if !lifetimeReplayAllowed {
+						return nil, wrapOpenAIWSFallback("continuation_unavailable", errOpenAIWSPreferredConnUnavailable)
+					}
+				}
+				return nil, &openAIWSFallbackError{Reason: fallbackReason, Err: errors.New(errMsg), PreserveContinuation: previousResponseID != "" && (forceNewConn || (preferredConnID != "" && preferredConnID != connID))}
+			}
+			if fallbackReason == "ws_connection_limit_reached" {
+				logOpenAIWSModeInfo("lifetime_recovery path=v2 account_id=%d conn_id=%s wrote_downstream=%v migratable=false reason=already_output client_request_id=%s", account.ID, connID, wroteDownstream, truncateOpenAIWSLogValue(clientRequestID, openAIWSIDValueMaxLen))
 			}
 			statusCode := openAIWSErrorHTTPStatusFromRaw(errCodeRaw, errTypeRaw)
 			setOpsUpstreamError(c, statusCode, errMsg, "")
