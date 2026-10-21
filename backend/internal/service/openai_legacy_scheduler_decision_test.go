@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -41,6 +42,75 @@ func newLegacySchedulerDecisionTestService(accounts []Account, loadBatch bool, c
 func releaseLegacySchedulerDecisionSelection(selection *AccountSelectionResult) {
 	if selection != nil && selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
+	}
+}
+
+func TestLegacySchedulerDecision_StickyTTLRetainsAndRenews(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		loadBatch bool
+		loadErr   error
+	}{
+		{name: "priority_lru"},
+		{name: "load_batch", loadBatch: true},
+		{name: "load_failure", loadBatch: true, loadErr: errors.New("load unavailable")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resetOpenAIAdvancedSchedulerSettingCacheForTest()
+			ctx := context.Background()
+			groupID := int64(38200)
+			accounts := newLegacySchedulerDecisionTestAccounts(groupID, true)
+			svc := newLegacySchedulerDecisionTestService(accounts, tc.loadBatch, schedulerTestConcurrencyCache{loadBatchErr: tc.loadErr})
+			// Legacy writes deliberately keep their own TTL even with an explicit configured TTL.
+			svc.cfg.Gateway.OpenAIWS.StickySessionTTLSeconds = 1800
+			cache := &stubGatewayCache{now: time.Date(2026, 10, 21, 0, 0, 0, 0, time.UTC)}
+			svc.cache = cache
+			start := cache.now
+			const session = "legacy-ttl-session"
+			const key = "openai:" + session
+			selectAccount := func(sessionHash string) (*AccountSelectionResult, OpenAIAccountScheduleDecision) {
+				selection, decision, err := svc.SelectAccountWithSchedulerForCapability(
+					ctx, &groupID, "", sessionHash, "gpt-5.1", nil,
+					OpenAIUpstreamTransportAny, OpenAIEndpointCapabilityChatCompletions, false, false, true,
+				)
+				require.NoError(t, err)
+				require.NotNil(t, selection)
+				require.NotNil(t, selection.Account)
+				require.True(t, selection.Acquired, "TTL checks must not exercise queue rebinding")
+				releaseLegacySchedulerDecisionSelection(selection)
+				return selection, decision
+			}
+
+			selection, decision := selectAccount(session)
+			require.Equal(t, int64(38101), selection.Account.ID)
+			require.False(t, decision.StickySessionHit)
+			createdTTL := cache.sessionTTLs[key]
+
+			accounts[1].Priority = -1
+			selection, _ = selectAccount("")
+			require.Equal(t, int64(38102), selection.Account.ID, "without a binding the other healthy account must win deterministically")
+
+			cache.now = start.Add(6 * time.Minute)
+			selection, decision = selectAccount(session)
+			require.Equal(t, int64(38101), selection.Account.ID, "six idle minutes must not discard account affinity")
+			require.Equal(t, openAIAccountScheduleLayerSessionSticky, decision.Layer)
+			require.True(t, decision.StickySessionHit)
+			require.Equal(t, time.Hour, createdTTL, "initial legacy binding must last one hour")
+			require.Equal(t, time.Hour, cache.sessionTTLs[key], "sticky hit must refresh for one hour")
+			require.Equal(t, cache.now.Add(time.Hour), cache.sessionExpires[key])
+
+			cache.now = start.Add(61 * time.Minute)
+			selection, decision = selectAccount(session)
+			require.Equal(t, int64(38101), selection.Account.ID, "expiry must follow the refresh, not the initial write")
+			require.True(t, decision.StickySessionHit)
+			require.Equal(t, cache.now.Add(time.Hour), cache.sessionExpires[key])
+
+			cache.now = cache.now.Add(time.Hour + time.Second)
+			selection, decision = selectAccount(session)
+			require.Equal(t, int64(38102), selection.Account.ID, "an idle binding must still expire after the last renewal")
+			require.False(t, decision.StickySessionHit)
+			require.Equal(t, openAIAccountScheduleLayerLoadBalance, decision.Layer)
+		})
 	}
 }
 

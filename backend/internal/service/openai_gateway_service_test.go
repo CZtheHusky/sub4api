@@ -740,6 +740,9 @@ func (c stubConcurrencyCache) GetAccountWaitingCount(ctx context.Context, accoun
 type stubGatewayCache struct {
 	sessionBindings map[string]int64
 	deletedSessions map[string]int
+	sessionTTLs     map[string]time.Duration
+	sessionExpires  map[string]time.Time
+	now             time.Time
 }
 
 type responseBindContextProbeCache struct {
@@ -760,6 +763,10 @@ func (c *responseBindContextProbeCache) SetSessionAccountID(ctx context.Context,
 }
 
 func (c *stubGatewayCache) GetSessionAccountID(ctx context.Context, groupID int64, sessionHash string) (int64, error) {
+	if expires, ok := c.sessionExpires[sessionHash]; ok && !c.now.Before(expires) {
+		delete(c.sessionBindings, sessionHash)
+		delete(c.sessionExpires, sessionHash)
+	}
 	if id, ok := c.sessionBindings[sessionHash]; ok {
 		return id, nil
 	}
@@ -771,11 +778,21 @@ func (c *stubGatewayCache) SetSessionAccountID(ctx context.Context, groupID int6
 		c.sessionBindings = make(map[string]int64)
 	}
 	c.sessionBindings[sessionHash] = accountID
+	if c.sessionTTLs == nil {
+		c.sessionTTLs = make(map[string]time.Duration)
+		c.sessionExpires = make(map[string]time.Time)
+	}
+	c.sessionTTLs[sessionHash] = ttl
+	c.sessionExpires[sessionHash] = c.now.Add(ttl)
 	return nil
 }
 
 func (c *stubGatewayCache) RefreshSessionTTL(ctx context.Context, groupID int64, sessionHash string, ttl time.Duration) error {
-	return nil
+	accountID, err := c.GetSessionAccountID(ctx, groupID, sessionHash)
+	if err != nil {
+		return nil // Redis EXPIRE does not recreate missing or expired bindings.
+	}
+	return c.SetSessionAccountID(ctx, groupID, sessionHash, accountID, ttl)
 }
 
 func (c *stubGatewayCache) DeleteSessionAccountID(ctx context.Context, groupID int64, sessionHash string) error {
@@ -787,6 +804,7 @@ func (c *stubGatewayCache) DeleteSessionAccountID(ctx context.Context, groupID i
 	}
 	c.deletedSessions[sessionHash]++
 	delete(c.sessionBindings, sessionHash)
+	delete(c.sessionExpires, sessionHash)
 	return nil
 }
 
