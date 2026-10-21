@@ -117,9 +117,37 @@ func TestOpenAIWSProtocolResolver_Resolve(t *testing.T) {
 	t.Run("OAuth账号不会读取API Key专用开关", func(t *testing.T) {
 		account := *openAIOAuthEnabled
 		account.Extra = map[string]any{
+			"openai_oauth_responses_websockets_v2_enabled": false,
 			"openai_apikey_responses_websockets_v2_enabled": true,
 		}
 		decision := NewOpenAIWSProtocolResolver(baseCfg).Resolve(&account)
+		require.Equal(t, OpenAIUpstreamTransportHTTPSSE, decision.Transport)
+		require.Equal(t, "account_disabled", decision.Reason)
+	})
+
+	t.Run("OAuth账号未配置WS键时默认跟随ingress默认ctx_pool", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+		}
+		decision := NewOpenAIWSProtocolResolver(baseCfg).Resolve(account)
+		require.Equal(t, OpenAIUpstreamTransportResponsesWebsocketV2, decision.Transport)
+		require.Equal(t, "ws_v2_enabled", decision.Reason)
+
+		account.Extra = map[string]any{
+			"openai_oauth_responses_websockets_v2_mode": "off",
+		}
+		decision = NewOpenAIWSProtocolResolver(baseCfg).Resolve(account)
+		require.Equal(t, OpenAIUpstreamTransportHTTPSSE, decision.Transport)
+		require.Equal(t, "account_disabled", decision.Reason)
+	})
+
+	t.Run("APIKey账号未配置WS键时保持显式opt-in", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeAPIKey,
+		}
+		decision := NewOpenAIWSProtocolResolver(baseCfg).Resolve(account)
 		require.Equal(t, OpenAIUpstreamTransportHTTPSSE, decision.Transport)
 		require.Equal(t, "account_disabled", decision.Reason)
 	})
