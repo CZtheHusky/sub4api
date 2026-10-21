@@ -457,6 +457,32 @@ describe('admin UsageTable tooltip', () => {
   })
 
 	it.each([
+		{ responseModel: 'gpt-6-astra', mismatch: false, expected: 'gpt-6-astra' },
+		{ responseModel: 'gpt-6-astra', mismatch: null, expected: 'gpt-6-astra' },
+		{ responseModel: null, mismatch: null, expected: '—' },
+	])('always shows the declared upstream response model, including matching and unknown records: %j', ({ responseModel, mismatch, expected }) => {
+		const wrapper = mount(UsageTable, {
+			props: {
+				data: [{
+					...baseImageRow,
+					model: 'gpt-6-astra',
+					upstream_response_model: responseModel,
+					upstream_model_mismatch: mismatch,
+				}],
+				loading: false,
+				columns: [],
+			},
+			global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+		})
+
+		const response = wrapper.get('[data-testid="upstream-response-model"]')
+		expect(response.text()).toBe(`Upstream response:${expected}`)
+		expect(response.text()).not.toContain('Different model')
+		expect(response.text()).not.toContain('Possible version variant')
+		wrapper.unmount()
+	})
+
+	it.each([
 		{
 			name: 'possible version variant',
 			responseModel: 'gpt-5.5-2026-08-01',
