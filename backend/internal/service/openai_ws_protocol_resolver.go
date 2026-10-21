@@ -99,7 +99,14 @@ func (r *defaultOpenAIWSProtocolResolver) Resolve(account *Account) OpenAIWSProt
 		}
 		return openAIWSHTTPDecision("feature_disabled")
 	}
-	if !account.IsOpenAIResponsesWebSocketV2Enabled() {
+	if account.IsOpenAIOAuthLike() {
+		// OAuth 类账号缺省跟随 gateway.openai_ws.ingress_mode_default（默认 ctx_pool）：
+		// 未显式配置 WS 键的账号默认启用 WS；显式 off 仍保持 HTTP。API Key 账号
+		// 常指向自定义上游，保持显式 opt-in 语义不变。
+		if account.ResolveOpenAIResponsesWebSocketV2Mode(wsCfg.IngressModeDefault) == OpenAIWSIngressModeOff {
+			return openAIWSHTTPDecision("account_disabled")
+		}
+	} else if !account.IsOpenAIResponsesWebSocketV2Enabled() {
 		return openAIWSHTTPDecision("account_disabled")
 	}
 	if wsCfg.ResponsesWebsocketsV2 {
