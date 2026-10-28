@@ -792,7 +792,8 @@ readLoop:
 						return nil, wrapOpenAIWSFallback("continuation_unavailable", errOpenAIWSPreferredConnUnavailable)
 					}
 				}
-				return nil, &openAIWSFallbackError{Reason: fallbackReason, Err: errors.New(errMsg), PreserveContinuation: previousResponseID != "" && (forceNewConn || (preferredConnID != "" && preferredConnID != connID))}
+				_, retryDeadline := openAIUpstreamRetryAfter(nil, message)
+				return nil, &openAIWSFallbackError{Reason: fallbackReason, Err: errors.New(errMsg), RetryAfter: retryDeadline, PreserveContinuation: previousResponseID != "" && (forceNewConn || (preferredConnID != "" && preferredConnID != connID))}
 			}
 			if fallbackReason == "ws_connection_limit_reached" {
 				logOpenAIWSModeInfo("lifetime_recovery path=v2 account_id=%d conn_id=%s wrote_downstream=%v migratable=false reason=already_output client_request_id=%s", account.ID, connID, wroteDownstream, truncateOpenAIWSLogValue(clientRequestID, openAIWSIDValueMaxLen))

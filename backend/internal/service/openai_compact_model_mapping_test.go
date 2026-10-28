@@ -122,7 +122,9 @@ func TestOpenAIGatewayService_Forward_NormalizesCompactionTriggerAfterHistoryCle
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	items := gjson.GetBytes(upstream.lastBody, "input").Array()
-	require.Len(t, items, 4)
+	require.Len(t, items, 5)
+	require.Equal(t, "developer", items[0].Get("role").String())
+	items = items[1:]
 	require.Equal(t, "function_call", items[0].Get("type").String())
 	require.Equal(t, "function_call_output", items[1].Get("type").String())
 	require.Equal(t, "message", items[2].Get("type").String())

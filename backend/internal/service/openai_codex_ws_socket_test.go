@@ -98,6 +98,7 @@ func TestCodexWSCompatibilityMetadataOnSocket(t *testing.T) {
 		require.Equal(t, inventoryName, bodyMetadata.Get("tool_namespaces_info.tools.name").String())
 		require.Equal(t, bodyMetadata.Get("thread_id").String(), got.headers.Get("thread-id"))
 		require.Equal(t, "response.create", gjson.GetBytes(got.body, "type").String())
+		require.Equal(t, []string{"type", "model", "stream"}, openAIUpstreamJSONTopLevelKeys(got.body)[:3], "synthesized WS frames must route before input")
 		require.Contains(t, rec.Body.String(), "response.completed")
 	}
 }

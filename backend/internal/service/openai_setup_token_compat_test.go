@@ -168,9 +168,9 @@ func TestOpenAISetupTokenChatCompletionsUsesCodexTransform(t *testing.T) {
 	require.Equal(t, "Bearer setup-token-value", upstream.lastReq.Header.Get("Authorization"))
 	require.Equal(t, "chatgpt-setup", upstream.lastReq.Header.Get("chatgpt-account-id"))
 	require.NotEmpty(t, upstream.lastReq.Header.Get("originator"))
-	require.Equal(t, "setup instructions", gjson.GetBytes(upstream.lastBody, "instructions").String())
-	require.Equal(t, int64(1), gjson.GetBytes(upstream.lastBody, "input.#").Int())
-	require.Equal(t, "user", gjson.GetBytes(upstream.lastBody, "input.0.role").String())
+	require.Equal(t, "setup instructions", gjson.GetBytes(upstream.lastBody, "input.0.content").String())
+	require.Equal(t, int64(2), gjson.GetBytes(upstream.lastBody, "input.#").Int())
+	require.Equal(t, "user", gjson.GetBytes(upstream.lastBody, "input.1.role").String())
 	require.NotEmpty(t, gjson.GetBytes(upstream.lastBody, "prompt_cache_key").String())
 }
 

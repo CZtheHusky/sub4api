@@ -21,7 +21,7 @@ func TestApplyCodexOAuthTransform_ToolContinuationPreservesInput(t *testing.T) {
 		"tool_choice": "auto",
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	// 未显式设置 store=true，默认为 false。
 	store, ok := reqBody["store"].(bool)
@@ -88,7 +88,7 @@ func TestApplyCodexOAuthTransform_ToolContinuationPreservesNativeMessageAndReaso
 		"tool_choice": "auto",
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -113,7 +113,7 @@ func TestApplyCodexOAuthTransform_ToolContinuationNormalizesToolReferenceIDsOnly
 		"tool_choice": "auto",
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -138,7 +138,7 @@ func TestApplyCodexOAuthTransform_NormalizesIsolatedLegacyReferenceAcrossTurns(t
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -170,7 +170,7 @@ func TestApplyCodexOAuthTransform_BoundsLongCallIDsAndPreservesPairing(t *testin
 				},
 			}
 
-			applyCodexOAuthTransform(reqBody, false, false)
+			applyCodexOAuthTransform(reqBody, false)
 
 			input, ok := reqBody["input"].([]any)
 			require.True(t, ok)
@@ -267,7 +267,7 @@ func TestApplyCodexOAuthTransform_ToolSearchOutputPreservesCallID(t *testing.T) 
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -288,7 +288,7 @@ func TestApplyCodexOAuthTransform_CustomAndMCPToolOutputsPreserveCallID(t *testi
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -314,7 +314,7 @@ func TestApplyCodexOAuthTransform_NormalizesNativeToolCallPairsByType(t *testing
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -405,7 +405,7 @@ func TestApplyCodexOAuthTransform_ImageAndWebSearchCallsDoNotGainCallID(t *testi
 		"tool_choice": "auto",
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -436,7 +436,7 @@ func TestApplyCodexOAuthTransform_ConvertsToolRoleMessageToFunctionCallOutput(t 
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -465,7 +465,7 @@ func TestApplyCodexOAuthTransform_StringifiesNonStringMessageContentText(t *test
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -504,7 +504,7 @@ func TestApplyCodexOAuthTransform_PreservesAllowedTools(t *testing.T) {
 				before, err := json.Marshal(reqBody)
 				require.NoError(t, err)
 				reqBody["model"] = "gpt-6-astra"
-				result := applyCodexOAuthTransform(reqBody, true, false)
+				result := applyCodexOAuthTransform(reqBody, false)
 				require.NoError(t, result.Error)
 				after, err := json.Marshal(map[string]any{
 					"tools": reqBody["tools"], "input": reqBody["input"], "tool_choice": reqBody["tool_choice"],
@@ -538,7 +538,7 @@ func TestApplyCodexOAuthTransform_AllowedToolsKeepsReservedNameReferences(t *tes
 	reqBody := map[string]any{
 		"model": "gpt-6-astra", "tools": []any{declaration}, "tool_choice": choice,
 	}
-	result := applyCodexOAuthTransform(reqBody, true, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.NoError(t, result.Error)
 	require.Equal(t, choice, reqBody["tool_choice"])
 	require.Equal(t, codexPythonToolAlias, declaration["name"])
@@ -555,7 +555,7 @@ func TestApplyCodexOAuthTransform_DowngradesUnknownToolChoice(t *testing.T) {
 		"tool_choice": map[string]any{"type": "custom"},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	require.Equal(t, "auto", reqBody["tool_choice"])
 }
@@ -569,7 +569,7 @@ func TestApplyCodexOAuthTransform_PreservesKnownToolChoice(t *testing.T) {
 		"tool_choice": map[string]any{"type": "custom"},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	choice, ok := reqBody["tool_choice"].(map[string]any)
 	require.True(t, ok)
@@ -588,7 +588,7 @@ func TestApplyCodexOAuthTransform_NormalizesLegacyFunctionToolChoice(t *testing.
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	choice, ok := reqBody["tool_choice"].(map[string]any)
 	require.True(t, ok)
@@ -609,7 +609,7 @@ func TestApplyCodexOAuthTransform_DowngradesMissingFunctionToolChoice(t *testing
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	require.Equal(t, "auto", reqBody["tool_choice"])
 }
@@ -623,7 +623,7 @@ func TestApplyCodexOAuthTransform_AddsFallbackNameForFunctionCallInput(t *testin
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -643,7 +643,7 @@ func TestApplyCodexOAuthTransform_PreservesFunctionCallInputName(t *testing.T) {
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -667,7 +667,7 @@ func TestApplyCodexOAuthTransform_PreservesMCPToolCallIDAndName(t *testing.T) {
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -698,7 +698,7 @@ func TestApplyCodexOAuthTransform_ExplicitStoreFalsePreserved(t *testing.T) {
 		"tool_choice": "auto",
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	store, ok := reqBody["store"].(bool)
 	require.True(t, ok)
@@ -717,7 +717,7 @@ func TestApplyCodexOAuthTransform_ExplicitStoreTrueForcedFalse(t *testing.T) {
 		"tool_choice": "auto",
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	store, ok := reqBody["store"].(bool)
 	require.True(t, ok)
@@ -731,7 +731,7 @@ func TestApplyCodexOAuthTransform_CompactForcesNonStreaming(t *testing.T) {
 		"stream": true,
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, true)
+	result := applyCodexOAuthTransform(reqBody, true)
 
 	_, hasStore := reqBody["store"]
 	require.False(t, hasStore)
@@ -750,7 +750,7 @@ func TestApplyCodexOAuthTransform_NonContinuationDefaultsStoreFalseAndStripsIDs(
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	store, ok := reqBody["store"].(bool)
 	require.True(t, ok)
@@ -799,7 +799,7 @@ func TestApplyCodexOAuthTransform_NormalizeCodexTools_PreservesResponsesFunction
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	tools, ok := reqBody["tools"].([]any)
 	require.True(t, ok)
@@ -1157,7 +1157,7 @@ func TestApplyCodexOAuthTransform_AddsSparkImageUnsupportedInstructions(t *testi
 		"input":        "hello",
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.True(t, result.Modified)
 
 	instructions, ok := reqBody["instructions"].(string)
@@ -1176,7 +1176,7 @@ func TestApplyCodexOAuthTransform_DoesNotAddSparkImageUnsupportedForNonSpark(t *
 		"input":        "hello",
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 	instructions, ok := reqBody["instructions"].(string)
 	require.True(t, ok)
 	require.NotContains(t, instructions, codexSparkImageUnsupportedMarker)
@@ -1195,7 +1195,7 @@ func TestApplyCodexOAuthTransform_StripsImageGenerationToolForSpark(t *testing.T
 		},
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.True(t, result.Modified)
 	require.False(t, hasOpenAIImageGenerationTool(reqBody))
 
@@ -1219,7 +1219,7 @@ func TestApplyCodexOAuthTransform_StripsImageGenerationToolForSparkAlias(t *test
 		},
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.True(t, result.Modified)
 	require.False(t, hasOpenAIImageGenerationTool(reqBody))
 	// tools became empty after stripping the only entry; the key is dropped.
@@ -1341,7 +1341,7 @@ func TestApplyCodexOAuthTransform_KeepsImageGenerationToolForNonSpark(t *testing
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 	require.True(t, hasOpenAIImageGenerationTool(reqBody))
 }
 
@@ -1421,7 +1421,7 @@ func TestApplyCodexOAuthTransform_EmptyInput(t *testing.T) {
 		"input": []any{},
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -1496,7 +1496,7 @@ func TestApplyCodexOAuthTransform_PreservesBareSparkModel(t *testing.T) {
 		"input": []any{},
 	}
 
-	result := applyCodexOAuthTransform(reqBody, false, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 
 	require.Equal(t, "gpt-5.3-codex-spark", reqBody["model"])
 	require.Equal(t, "gpt-5.3-codex-spark", result.NormalizedModel)
@@ -1511,7 +1511,7 @@ func TestApplyCodexOAuthTransform_TrimmedModelWithoutPolicyRewrite(t *testing.T)
 		"input": []any{},
 	}
 
-	result := applyCodexOAuthTransform(reqBody, false, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 
 	require.Equal(t, "gpt-5.3-codex-spark", reqBody["model"])
 	require.Equal(t, "gpt-5.3-codex-spark", result.NormalizedModel)
@@ -1526,7 +1526,7 @@ func TestApplyCodexOAuthTransform_CodexCLI_PreservesExistingInstructions(t *test
 		"instructions": "existing instructions",
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, false) // isCodexCLI=true
+	result := applyCodexOAuthTransform(reqBody, false)
 
 	instructions, ok := reqBody["instructions"].(string)
 	require.True(t, ok)
@@ -1543,7 +1543,7 @@ func TestApplyCodexOAuthTransform_CodexCLI_SuppliesDefaultWhenEmpty(t *testing.T
 		// 没有 instructions 字段
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, false) // isCodexCLI=true
+	result := applyCodexOAuthTransform(reqBody, false)
 
 	instructions, ok := reqBody["instructions"].(string)
 	require.True(t, ok)
@@ -1557,7 +1557,7 @@ func TestApplyCodexOAuthTransform_GPT55SuppliesModelSpecificInstructions(t *test
 		"instructions": "   ",
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 
 	instructions, ok := reqBody["instructions"].(string)
 	require.True(t, ok)
@@ -1571,7 +1571,7 @@ func TestApplyCodexOAuthTransform_GPT6AstraSuppliesModelSpecificInstructions(t *
 		"model": "gpt-6-astra",
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 
 	instructions, ok := reqBody["instructions"].(string)
 	require.True(t, ok)
@@ -1588,7 +1588,7 @@ func TestApplyCodexOAuthTransform_NonCodexCLI_PreservesExistingInstructions(t *t
 		"instructions": "old instructions",
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false) // isCodexCLI=false
+	applyCodexOAuthTransform(reqBody, false)
 
 	instructions, ok := reqBody["instructions"].(string)
 	require.True(t, ok)
@@ -1597,7 +1597,7 @@ func TestApplyCodexOAuthTransform_NonCodexCLI_PreservesExistingInstructions(t *t
 
 func TestApplyCodexOAuthTransform_StringInputConvertedToArray(t *testing.T) {
 	reqBody := map[string]any{"model": "gpt-5.4", "input": "Hello, world!"}
-	result := applyCodexOAuthTransform(reqBody, false, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.True(t, result.Modified)
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -1611,7 +1611,7 @@ func TestApplyCodexOAuthTransform_StringInputConvertedToArray(t *testing.T) {
 
 func TestApplyCodexOAuthTransform_EmptyStringInputBecomesEmptyArray(t *testing.T) {
 	reqBody := map[string]any{"model": "gpt-5.4", "input": ""}
-	result := applyCodexOAuthTransform(reqBody, false, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.True(t, result.Modified)
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -1620,7 +1620,7 @@ func TestApplyCodexOAuthTransform_EmptyStringInputBecomesEmptyArray(t *testing.T
 
 func TestApplyCodexOAuthTransform_WhitespaceStringInputBecomesEmptyArray(t *testing.T) {
 	reqBody := map[string]any{"model": "gpt-5.4", "input": "   "}
-	result := applyCodexOAuthTransform(reqBody, false, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.True(t, result.Modified)
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
@@ -1633,7 +1633,7 @@ func TestApplyCodexOAuthTransform_StringInputWithToolsField(t *testing.T) {
 		"input": "Run the tests",
 		"tools": []any{map[string]any{"type": "function", "name": "bash"}},
 	}
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
 	require.Len(t, input, 1)
@@ -1842,7 +1842,7 @@ func TestApplyCodexOAuthTransform_StripsPromptCacheRetention(t *testing.T) {
 		},
 	}
 
-	applyCodexOAuthTransform(reqBody, false, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	_, stillThere := reqBody["prompt_cache_retention"]
 	require.False(t, stillThere,
@@ -1865,7 +1865,7 @@ func TestApplyCodexOAuthTransform_StripsChatGPTInternalUnsupportedFields(t *test
 		},
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 
 	require.True(t, result.Modified)
 	for _, field := range openAIChatGPTInternalUnsupportedFields {
@@ -1878,7 +1878,7 @@ func TestApplyCodexOAuthTransformAddsNativeResponsesDefaults(t *testing.T) {
 		"model": "gpt-5.5",
 		"input": []any{map[string]any{"type": "message", "role": "user", "content": "hi"}},
 	}
-	result := applyCodexOAuthTransform(reqBody, false, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.NoError(t, result.Error)
 	require.Equal(t, "auto", reqBody["tool_choice"])
 	require.Equal(t, false, reqBody["parallel_tool_calls"])
@@ -1893,7 +1893,7 @@ func TestApplyCodexOAuthTransform_NormalizesPromptAndCommands(t *testing.T) {
 		"commands": []any{"unsupported"},
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.True(t, result.Modified)
 	require.Equal(t, []any{
 		map[string]any{"type": "message", "role": "user", "content": "hello"},
@@ -1935,7 +1935,7 @@ func TestApplyCodexOAuthTransform_ExtractsSystemMessages(t *testing.T) {
 		},
 	}
 
-	result := applyCodexOAuthTransform(reqBody, false, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 
 	require.True(t, result.Modified)
 
@@ -1949,7 +1949,7 @@ func TestApplyCodexOAuthTransform_ExtractsSystemMessages(t *testing.T) {
 	user, ok := input[1].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "user", user["role"])
-	require.Equal(t, "You are a coding assistant.", reqBody["instructions"])
+	require.NotContains(t, reqBody, "instructions", "developer guidance must not be duplicated")
 }
 
 func TestApplyCodexOAuthTransform_JsonObjectKeepsJsonInstructionInInput(t *testing.T) {
@@ -1972,12 +1972,10 @@ func TestApplyCodexOAuthTransform_JsonObjectKeepsJsonInstructionInInput(t *testi
 		},
 	}
 
-	result := applyCodexOAuthTransform(reqBody, false, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 
 	require.True(t, result.Modified)
-	instructions, ok := reqBody["instructions"].(string)
-	require.True(t, ok)
-	require.Contains(t, instructions, "JSON")
+	require.NotContains(t, reqBody, "instructions")
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)
 	require.Len(t, input, 2)

@@ -601,7 +601,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 				c, body, "ingress_ws_http_bridge_invalid_encrypted_lineage_mark", account.ID, turn,
 			)
 		}
-		retryBody, retryReason, changed, retryErr := normalizeOpenAIResponsesRejectedFieldRetryBody(resp.StatusCode, body, respBody)
+		retryBody, retryReason, changed, retryErr := normalizeOpenAIResponsesRejectedFieldRetryRequest(upstreamReq, resp.StatusCode, body, respBody)
 		if retryErr != nil {
 			return nil, fmt.Errorf("normalize websocket http bridge rejected field retry: %w", retryErr)
 		}

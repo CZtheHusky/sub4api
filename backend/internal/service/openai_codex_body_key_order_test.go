@@ -102,12 +102,13 @@ func TestOpenAIForwardCodexLanePreservesTopLevelKeyOrder(t *testing.T) {
 	keys := topLevelJSONKeys(t, upstream.bodies[0])
 	// The client keys keep their original positions and every gateway-added
 	// key lands in the official serde declaration order (ResponsesApiRequest:
-	// model, stream, service_tier, instructions, input, tools, tool_choice,
+	// model, stream, service_tier, input, tools, tool_choice,
 	// parallel_tool_calls, reasoning, store, stream_options, include,
 	// prompt_cache_key, text, client_metadata, access_programs).
 	require.Equal(t,
-		[]string{"model", "stream", "instructions", "input", "tool_choice",
+		[]string{"model", "stream", "input", "tool_choice",
 			"parallel_tool_calls", "reasoning", "store", "include", "client_metadata"},
 		keys)
-	require.JSONEq(t, `[]`, string(gjson.GetBytes(upstream.bodies[0], "input").Raw))
+	require.Equal(t, "developer", gjson.GetBytes(upstream.bodies[0], "input.0.role").String())
+	require.Len(t, gjson.GetBytes(upstream.bodies[0], "input").Array(), 1)
 }

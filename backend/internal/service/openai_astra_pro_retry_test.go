@@ -68,7 +68,7 @@ func TestOpenAIGatewayService_OAuthAstraProModeRejectionPassesThrough(t *testing
 func TestOpenAIGatewayService_OAuthAstraProModeKeptAcrossRejectedFieldRetry(t *testing.T) {
 	body := []byte(`{"model":"gpt-6-astra","stream":true,"instructions":"test","reasoning":{"mode":"pro","effort":"max"},"input":[{"type":"message","role":"user","status":"completed","content":"hello"}]}`)
 	upstream := &httpUpstreamRecorder{responses: []*http.Response{
-		newOpenAIRejectedFieldTestResponse(http.StatusBadRequest, `{"error":{"code":"unknown_parameter","message":"Unknown parameter: 'input[0].status'.","param":"input[0].status"}}`),
+		newOpenAIRejectedFieldTestResponse(http.StatusBadRequest, `{"error":{"code":"unknown_parameter","message":"Unknown parameter: 'input[1].status'.","param":"input[1].status"}}`),
 		newOpenAIRejectedFieldTestResponse(http.StatusOK, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_ok\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\ndata: [DONE]\n\n"),
 	}}
 	upstream.responses[1].Header.Set("Content-Type", "text/event-stream")
@@ -87,6 +87,6 @@ func TestOpenAIGatewayService_OAuthAstraProModeKeptAcrossRejectedFieldRetry(t *t
 		require.Equal(t, "pro", gjson.GetBytes(sent, "reasoning.mode").String(), "attempt %d reasoning.mode", i)
 		require.Equal(t, "max", gjson.GetBytes(sent, "reasoning.effort").String(), "attempt %d reasoning.effort", i)
 	}
-	require.Equal(t, "completed", gjson.GetBytes(upstream.bodies[0], "input.0.status").String())
-	require.False(t, gjson.GetBytes(upstream.bodies[1], "input.0.status").Exists())
+	require.Equal(t, "completed", gjson.GetBytes(upstream.bodies[0], "input.1.status").String())
+	require.False(t, gjson.GetBytes(upstream.bodies[1], "input.1.status").Exists())
 }

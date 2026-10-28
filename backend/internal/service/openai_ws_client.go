@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -308,6 +309,13 @@ func (c *coderOpenAIWSClientConn) WriteJSON(ctx context.Context, value any) erro
 	}
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if payload, ok := value.(map[string]any); ok && payload["type"] == "response.create" {
+		encoded, err := marshalOpenAIUpstreamJSON(payload)
+		if err != nil {
+			return err
+		}
+		value = json.RawMessage(restoreOpenAIUpstreamJSONTopLevelOrder([]byte(`{"type":null}`), encoded))
 	}
 	return wsjson.Write(ctx, c.conn, value)
 }

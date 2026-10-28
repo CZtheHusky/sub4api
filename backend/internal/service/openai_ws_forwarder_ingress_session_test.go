@@ -814,7 +814,8 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_CodexImageBridge
 	require.True(t, gjson.Get(nonLitePayload, `tools.#(type=="image_generation")`).Exists())
 	require.Equal(t, "png", gjson.Get(nonLitePayload, `tools.#(type=="image_generation").output_format`).String())
 	require.Equal(t, "auto", gjson.Get(nonLitePayload, "tool_choice").String())
-	require.Contains(t, gjson.Get(nonLitePayload, "instructions").String(), "image_generation")
+	require.False(t, gjson.Get(nonLitePayload, "instructions").Exists())
+	require.Contains(t, gjson.Get(nonLitePayload, `input.#(role=="developer").content.0.text`).String(), "image_generation")
 	require.False(t, gjson.Get(nonLitePayload, "reasoning.context").Exists())
 	require.True(t, gjson.Get(nonLitePayload, "parallel_tool_calls").Bool())
 	require.Equal(t, "900719925474099312345", gjson.Get(nonLitePayload, "sequence").Raw)
@@ -1415,15 +1416,15 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_HTTPBridgeModeRe
 	cfg.Gateway.OpenAIWS.ReadTimeoutSeconds = 3
 	cfg.Gateway.OpenAIWS.WriteTimeoutSeconds = 3
 
+	bodyReader, bodyWriter := io.Pipe()
+	finishHTTP := make(chan struct{})
+	defer bodyReader.Close()
+	defer bodyWriter.Close()
 	upstream := &httpUpstreamRecorder{
 		resp: &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"text/event-stream"}, "x-request-id": []string{"rid_bridge_1"}},
-			Body: io.NopCloser(strings.NewReader(
-				"data: {\"type\":\"response.output_text.delta\",\"delta\":\"hello\"}\n\n" +
-					"data: {\"type\":\"response.done\",\"response\":{\"id\":\"resp_http_bridge_1\",\"output\":[{\"id\":\"ig_bridge_1\",\"type\":\"image_generation_call\",\"status\":\"in_progress\",\"result\":\"final-image\"}],\"usage\":{\"input_tokens\":2,\"output_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":1}}}}\n\n" +
-					"data: [DONE]\n\n",
-			)),
+			Body:       bodyReader,
 		},
 	}
 	svc := &OpenAIGatewayService{
@@ -1433,6 +1434,17 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_HTTPBridgeModeRe
 		openaiWSResolver: NewOpenAIWSProtocolResolver(cfg),
 		toolCorrector:    NewCodexToolCorrector(),
 	}
+
+	go func() {
+		defer bodyWriter.Close()
+		_, _ = io.WriteString(bodyWriter, "data: {\"type\":\"response.output_text.delta\",\"delta\":\"hello\"}\n\n")
+		select {
+		case <-finishHTTP:
+		case <-time.After(3 * time.Second):
+			return
+		}
+		_, _ = io.WriteString(bodyWriter, "data: {\"type\":\"response.done\",\"response\":{\"id\":\"resp_http_bridge_1\",\"output\":[{\"id\":\"ig_bridge_1\",\"type\":\"image_generation_call\",\"status\":\"in_progress\",\"result\":\"final-image\"}],\"usage\":{\"input_tokens\":2,\"output_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":1}}}}\n\ndata: [DONE]\n\n")
+	}()
 
 	account := &Account{
 		ID:          552,
@@ -1518,6 +1530,15 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_HTTPBridgeModeRe
 	require.NoError(t, readErr1)
 	require.Equal(t, "response.output_text.delta", gjson.GetBytes(event1, "type").String())
 	require.Equal(t, "hello", gjson.GetBytes(event1, "delta").String())
+
+	interruptCtx, cancelInterrupt := context.WithTimeout(context.Background(), time.Second)
+	require.NoError(t, clientConn.Write(interruptCtx, coderws.MessageText, []byte(`{"type":"response.interrupt","response_id":"resp_http_bridge_1","mode":"discard_partial_items"}`)))
+	_, ack, ackErr := clientConn.Read(interruptCtx)
+	cancelInterrupt()
+	require.NoError(t, ackErr, "HTTP bridge must answer before the pending HTTP turn completes")
+	require.Equal(t, "response.interrupt.failed", gjson.GetBytes(ack, "type").String())
+	require.Equal(t, "resp_http_bridge_1", gjson.GetBytes(ack, "response_id").String())
+	close(finishHTTP)
 
 	readCtx2, cancelRead2 := context.WithTimeout(context.Background(), 3*time.Second)
 	_, event2, readErr2 := clientConn.Read(readCtx2)

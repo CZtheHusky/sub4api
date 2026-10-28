@@ -76,6 +76,19 @@ func TestSameAccountRetryAllowedUsesDeadlineInsteadOfPoolCount(t *testing.T) {
 	require.False(t, sameAccountRetryAllowed(err, 0, 100))
 }
 
+func TestSameAccountRetryPreservesServerDeadline(t *testing.T) {
+	advice := &service.UpstreamFailoverError{RetryableOnSameAccount: true,
+		RetryAfter: time.Now().Add(50 * time.Millisecond), SameAccountRetryDelay: time.Second}
+	delay := sameAccountRetryDelayFor(advice, 1)
+	require.Positive(t, delay)
+	require.LessOrEqual(t, delay, 50*time.Millisecond)
+	require.True(t, sleepWithContext(context.Background(), delay))
+	require.Zero(t, sameAccountRetryDelayFor(advice, 2), "passing the same advice between layers must not restart its timer")
+	advice.RetryAfter = time.Now().Add(time.Minute)
+	advice.SameAccountRetryDeadline = time.Now().Add(time.Second)
+	require.False(t, sameAccountRetryAllowed(advice, 0, 3), "server advice cannot extend the retry budget")
+}
+
 func TestSameAccountRetryAllowedRequiresOptInAndDefaultsToCountLimit(t *testing.T) {
 	err := &service.UpstreamFailoverError{SameAccountRetryDeadline: time.Now().Add(time.Minute)}
 	require.False(t, sameAccountRetryAllowed(err, 0, maxSameAccountRetries))

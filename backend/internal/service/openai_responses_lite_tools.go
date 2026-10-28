@@ -87,7 +87,8 @@ func normalizeOpenAIResponsesLiteTools(reqBody map[string]any) (bool, error) {
 		}
 		input = items
 	}
-	changed := hasTools || instructions != ""
+	_, hasInstructions := reqBody["instructions"]
+	changed := hasTools || hasInstructions
 	if stripOpenAIResponsesLiteImageDetails(input) {
 		changed = true
 	}
@@ -97,9 +98,7 @@ func normalizeOpenAIResponsesLiteTools(reqBody map[string]any) (bool, error) {
 	if hasTools {
 		delete(reqBody, "tools")
 	}
-	if hasTools || instructions != "" {
-		reqBody["instructions"] = ""
-	}
+	delete(reqBody, "instructions")
 	reasoningChanged, err := ensureOpenAIResponsesLiteReasoningContext(reqBody)
 	if err != nil {
 		return false, err
@@ -269,7 +268,7 @@ func appendOpenAIResponsesLiteAdditionalTools(input any, moved []any) ([]any, er
 			}
 		}
 	}
-	if len(moved) == 0 && target != nil {
+	if len(moved) == 0 {
 		return items, nil
 	}
 	merged, err := mergeOpenAIResponsesLiteAdditionalTools(existing, moved)

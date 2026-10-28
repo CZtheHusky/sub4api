@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -109,6 +110,23 @@ func (s *openAIResponsesRejectedFieldRetryState) rememberLocked(body []byte) {
 		s.seenBodyHashes = make(map[[sha256.Size]byte]struct{}, maxOpenAIResponsesRejectedFieldRetries+1)
 	}
 	s.seenBodyHashes[sha256.Sum256(body)] = struct{}{}
+}
+
+// Provider error indices address the final wire input, which may include a
+// migrated developer prefix absent from the caller's original request body.
+func normalizeOpenAIResponsesRejectedFieldRetryRequest(req *http.Request, statusCode int, body, responseBody []byte) ([]byte, string, bool, error) {
+	if statusCode == http.StatusBadRequest && req.GetBody != nil {
+		reader, err := req.GetBody()
+		if err != nil {
+			return nil, "", false, err
+		}
+		defer reader.Close()
+		body, err = io.ReadAll(reader)
+		if err != nil {
+			return nil, "", false, err
+		}
+	}
+	return normalizeOpenAIResponsesRejectedFieldRetryBody(statusCode, body, responseBody)
 }
 
 func normalizeOpenAIResponsesRejectedFieldRetryBody(statusCode int, body, responseBody []byte) ([]byte, string, bool, error) {

@@ -58,9 +58,9 @@ func TestOpenAIGatewayService_OAuthPreservesCodexNamespaceTools(t *testing.T) {
 	// 摊平名一旦出现，模型就无法按工具描述里的 to=functions.collaboration.spawn_agent 寻址。
 	require.NotContains(t, string(forwarded), "collaboration__spawn_agent")
 
-	require.Equal(t, "collaboration", gjson.GetBytes(forwarded, "input.0.namespace").String())
-	require.Equal(t, "spawn_agent", gjson.GetBytes(forwarded, "input.0.name").String())
-	require.False(t, gjson.GetBytes(forwarded, "input.1.namespace").Exists())
+	require.Equal(t, "collaboration", gjson.GetBytes(forwarded, "input.1.namespace").String())
+	require.Equal(t, "spawn_agent", gjson.GetBytes(forwarded, "input.1.name").String())
+	require.False(t, gjson.GetBytes(forwarded, "input.2.namespace").Exists())
 
 	// 未摊平即无需回程还原，不得登记映射。
 	require.Empty(t, openAIResponsesNamespaceNames(c))
@@ -178,9 +178,9 @@ func TestOpenAIGatewayService_OAuthFlattenFlagRestoresLegacyBehavior(t *testing.
 	require.True(t, gjson.GetBytes(forwarded, `tools.#(name=="collaboration__spawn_agent")`).Exists())
 	require.True(t, gjson.GetBytes(forwarded, `tools.#(name=="collaboration__wait_agent")`).Exists())
 	// 摊平后调用项已改写成平名，不得再带 namespace。
-	require.Equal(t, "collaboration__spawn_agent", gjson.GetBytes(forwarded, "input.0.name").String())
-	require.False(t, gjson.GetBytes(forwarded, "input.0.namespace").Exists())
+	require.Equal(t, "collaboration__spawn_agent", gjson.GetBytes(forwarded, "input.1.name").String())
 	require.False(t, gjson.GetBytes(forwarded, "input.1.namespace").Exists())
+	require.False(t, gjson.GetBytes(forwarded, "input.2.namespace").Exists())
 
 	names := openAIResponsesNamespaceNames(c)
 	require.Equal(t,
