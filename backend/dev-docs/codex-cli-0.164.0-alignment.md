@@ -1,6 +1,55 @@
 # Codex CLI 0.164.0：本地对齐记录
 
-日期：2026-10-26（本地时区）。仓库：`/home/caozhe/workspace/sub4api`。修改基线：`e59fb52e2327aad880cbf2f2c983a161b0df4a3b`。本次对齐的代码、测试与文档随本记录提交；未部署或修改线上设置。
+日期：2026-10-26（本地时区），部署记录更新于 2026-10-28。仓库：`/home/caozhe/workspace/sub4api`。修改基线：`e59fb52e2327aad880cbf2f2c983a161b0df4a3b`。下方 10 月 26–27 日的验收与授权边界是当时记录；最新部署状态见本节。
+
+## ccvps 部署（2026-10-28）
+
+用户明确授权替换 ccvps 后，已将 `sub2api.service` 更新为对齐提交 `eb6ac219288c43706ec77b7a074c12ec9ca0ff0e`。服务于 **11:53:38 UTC（04:53:38 PDT）**启动，11:53:41 UTC 首轮检查通过，11:54:42 UTC 复核仍为同一进程、`NRestarts=0`。此前“禁止使用实际账号测试”的限制仍有效：本次未发起实际账号推理请求。
+
+| 项目 | 部署结果 |
+| --- | --- |
+| 原程序 | `1.2.0`，提交 `e59fb52e2327aad880cbf2f2c983a161b0df4a3b` |
+| 新程序 | `1.2.0-custom.codex164.eb6ac2192`，提交 `eb6ac219288c43706ec77b7a074c12ec9ca0ff0e` |
+| 发布包 | 从已提交源码在本机断网、空白 HOME 环境重建，`CGO_ENABLED=0`、Linux amd64、`-tags=embed`，包含控制台；构建中的 3 项 i18n 测试、类型检查、前端及后端构建成功 |
+| 本机发布包检查 | 同一完整二进制在隔离环境启动，首页与 6 个 JS/CSS 资源可访问；没有使用真实配置或凭据 |
+| 生效版本设置 | `openai_codex_client_version`：`0.161.0` → `0.164.0` |
+| 其他版本设置 | 自动同步保持 `false`；同步存储值仍为 `0.163.0`，被手工设置覆盖 |
+| 数据库迁移 | 本次提交未新增迁移；303 个本地迁移与现网对应记录全部匹配，无待执行迁移；现网另有 8 条历史迁移记录，保留 |
+| 现网检查 | 磁盘与运行中程序 SHA256 一致；`/health` 正常；`/setup/status` 为 `needs_setup=false`；首页与 6 个 JS/CSS 资源均正常 |
+| 保留项 | `config.yaml`、systemd 单元内容未变；PostgreSQL 与 Redis 进程 ID 分别仍为 `819`、`666`，没有重启 |
+
+新程序 SHA256：`fd65e7adfd46069126c7ab24325d324a4200d9944502fac55fe3d15e45c781e5`。旧程序 SHA256：`51374c61e80c2c544398c5395d910118ad67fe58e03a989ae144cb5b69cb98c1`。迁移校验复用应用的 `TrimSpace` 后 SHA256 语义，未改数据库中的 checksum。
+
+远端备份目录（`root` 所有、权限 `0700`）：
+
+```text
+/opt/sub2api/backups/codex164-eb6ac2192-20261028T115020Z
+```
+
+目录内包括旧二进制、原配置、原 systemd 单元、3 项版本设置快照 `before.json`、PostgreSQL 自定义格式备份 `sub2api.pgdump`（14,851,992 字节，`pg_restore --list` 成功）、备份校验和、部署/回滚脚本及核验结果。数据库备份始终留在远端私有目录，未下载或打印凭据。备份和上传完成后才执行替换；新服务检查失败时部署脚本会自动恢复旧程序和原手工版本。此次部署没有触发自动回滚，也未在现网执行回滚演练。
+
+需要回滚时在本机执行以下命令；它只恢复程序和原手工版本，不还原数据库，不覆盖此后产生的业务数据：
+
+```sh
+ssh ccvps 'systemd-run --unit=sub2api-rollback-codex164-eb6ac2192 \
+  --property=RuntimeMaxSec=15min --property=UMask=0077 \
+  --property=StandardOutput=append:/opt/sub2api/backups/codex164-eb6ac2192-20261028T115020Z/rollback.log \
+  --property=StandardError=append:/opt/sub2api/backups/codex164-eb6ac2192-20261028T115020Z/rollback.log \
+  /bin/bash /opt/sub2api/backups/codex164-eb6ac2192-20261028T115020Z/rollback.sh'
+```
+
+所有耗时不定的步骤均由 systemd 托管，没有使用 PTY 保活。完整命令已保存在对应脚本和单元 `ExecStart` 中：
+
+| 步骤 / 托管位置 | 单元 | 命令 / 输出 |
+| --- | --- | --- |
+| 本机完整构建 | `sub4api-ccvps-build-eb6ac2192-v2.service` | `/bin/bash /tmp/sub4api-ccvps-eb6ac2192-20261028/build.sh`；`build2.log`；产物 `output/sub2api` |
+| 本机上传 | `sub4api-ccvps-upload-eb6ac2192.service` | `/usr/bin/scp -C -B -o StrictHostKeyChecking=yes -o ConnectTimeout=15 /tmp/sub4api-ccvps-eb6ac2192-20261028/output/sub2api ccvps:/opt/sub2api/backups/codex164-eb6ac2192-20261028T115020Z/sub2api.candidate`；本机目录 `upload.log` |
+| 远端备份 | `sub2api-backup-codex164-eb6ac2192.service` | `/bin/bash <远端备份目录>/backup.sh`；`backup.log` |
+| 远端替换 | `sub2api-deploy-codex164-eb6ac2192.service` | `/bin/bash <远端备份目录>/apply.sh`；`deploy.log`、`verify-new.json`、`postcheck.json` |
+
+以上成功单元退出码均为 0。首次构建曾因测试缓存目录只读而失败；随后只为 `.vite` 缓存挂载临时可写目录，第二次构建成功，未修改生产源码。启动窗口日志没有 ERROR/FATAL；仍有原配置相关警告（TOTP/payment 固定密钥、URL allowlist、JWT 持久化值、可信代理、CORS）及原先缺失的定价 fallback 文件提示，本次未修改这些配置或资源。完整日志保存在远端备份目录的 `startup-journal.jsonl`。
+
+**验收边界：**此次确认部署、启动和控制台可用；此前的 HTTP/WS 模拟测试证据继续有效，但没有新增真实上游 HTTP/WS、真实缓存命中、错误率或长会话验证，不能把健康接口通过等同于真实账号链路验收。
 
 ## 替换现有服务的判断（2026-10-27）
 
