@@ -436,7 +436,7 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 	}
 	instructions := gjson.GetBytes(body, "instructions")
 	instructionsEmpty := !instructions.Exists() || instructions.Type != gjson.String || strings.TrimSpace(instructions.String()) == ""
-	if instructionsEmpty && account.UsesOpenAICodexProtocol() && !compatMessagesBridge && !nativeCNResponses && !responsesLite {
+	if instructionsEmpty && !codexInputHasInstructions(body) && account.UsesOpenAICodexProtocol() && !compatMessagesBridge && !nativeCNResponses && !responsesLite {
 		markPatchSet("instructions", defaultCodexSynthInstructions(upstreamModel))
 	}
 	if billingModel != requestedModel {
@@ -1010,6 +1010,12 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 			}
 			if retryable && attempt < maxAttempts {
 				backoff := s.openAIWSRetryBackoff(attempt)
+				if fallbackErr != nil && !fallbackErr.RetryAfter.IsZero() {
+					backoff = time.Until(fallbackErr.RetryAfter)
+					if backoff < 0 {
+						backoff = 0
+					}
+				}
 				if !openAIWSRetryBudgetAllows(time.Since(retryStartedAt), backoff, retryBudget) {
 					s.recordOpenAIWSRetryExhausted()
 					logOpenAIWSModeInfo(
@@ -1225,7 +1231,7 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 				}
 				logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Skip non-WSv2 invalid_encrypted_content retry because encrypted reasoning items are missing (account: %s)", account.Name)
 			}
-			if retryBody, reason, changed, retryErr := normalizeOpenAIResponsesRejectedFieldRetryBody(resp.StatusCode, body, respBody); retryErr != nil {
+			if retryBody, reason, changed, retryErr := normalizeOpenAIResponsesRejectedFieldRetryRequest(upstreamReq, resp.StatusCode, body, respBody); retryErr != nil {
 				return nil, fmt.Errorf("normalize rejected Responses field retry body: %w", retryErr)
 			} else if changed && rejectedFieldRetryState.Allow(retryBody) {
 				body = retryBody

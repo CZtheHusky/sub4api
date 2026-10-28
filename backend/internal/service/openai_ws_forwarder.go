@@ -58,8 +58,9 @@ var openAIWSIngressPreflightPingIdle = 20 * time.Second
 
 // openAIWSFallbackError 表示可安全回退到 HTTP 的 WS 错误（尚未写下游）。
 type openAIWSFallbackError struct {
-	Reason string
-	Err    error
+	Reason     string
+	Err        error
+	RetryAfter time.Time
 	// A replacement connection cannot turn an unproven continuation into a root.
 	PreserveContinuation bool
 }
@@ -82,7 +83,12 @@ func (e *openAIWSFallbackError) Unwrap() error {
 }
 
 func wrapOpenAIWSFallback(reason string, err error) error {
-	return &openAIWSFallbackError{Reason: strings.TrimSpace(reason), Err: err}
+	fallback := &openAIWSFallbackError{Reason: strings.TrimSpace(reason), Err: err}
+	var dialErr *openAIWSDialError
+	if errors.As(err, &dialErr) {
+		_, fallback.RetryAfter = openAIUpstreamRetryAfter(dialErr.ResponseHeaders, dialErr.ResponseBody)
+	}
+	return fallback
 }
 
 // OpenAIWSClientCloseError 表示应以指定 WebSocket close code 主动关闭客户端连接的错误。

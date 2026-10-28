@@ -347,7 +347,7 @@ func TestApplyCodexOAuthTransform_PreservesLiteNamespaceToolChoice(t *testing.T)
 		"tool_choice": map[string]any{"type": "namespace", "name": "collaboration"},
 	}
 
-	applyCodexOAuthTransform(reqBody, true, false)
+	applyCodexOAuthTransform(reqBody, false)
 
 	require.Equal(t, map[string]any{"type": "namespace", "name": "collaboration"}, reqBody["tool_choice"])
 }
@@ -593,7 +593,7 @@ func TestNormalizeOpenAIResponsesLiteTools_MergesExistingFunctionsWithoutDuplica
 
 func TestNormalizeOpenAIResponsesLiteTools_PreservesSerializedAndIncrementalRequests(t *testing.T) {
 	for _, body := range []string{
-		`{"instructions":"","input":[{"type":"additional_tools","id":"at_stable","role":"developer","tools":[]},{"type":"message","id":"msg_stable","role":"developer","content":[{"type":"input_text","text":"Instructions"}]}],"reasoning":{"context":"all_turns"},"parallel_tool_calls":false}`,
+		`{"input":[{"type":"additional_tools","id":"at_stable","role":"developer","tools":[]},{"type":"message","id":"msg_stable","role":"developer","content":[{"type":"input_text","text":"Instructions"}]}],"reasoning":{"context":"all_turns"},"parallel_tool_calls":false}`,
 		`{"type":"response.create","previous_response_id":"resp_1","input":[{"type":"function_call_output","call_id":"call_1","output":"900719925474099312345"},{"type":"custom_tool_call_output","call_id":"call_2","output":"ok"}],"reasoning":{"context":"all_turns"},"parallel_tool_calls":false}`,
 	} {
 		updated, changed, err := normalizeOpenAIResponsesLiteToolsPayload([]byte(body))
@@ -662,8 +662,8 @@ func TestNormalizeOpenAIResponsesLiteTools_CompactDoesNotGainStreamingFields(t *
 	body := []byte(`{"model":"gpt-5.6-terra","instructions":"Compact this history","tools":[],"input":[{"type":"compaction","encrypted_content":"opaque_history"}],"prompt_cache_key":"thread_1"}`)
 	updated, _, err := normalizeOpenAIResponsesLiteToolsPayload(body)
 	require.NoError(t, err)
-	require.Equal(t, "Compact this history", gjson.GetBytes(updated, "input.1.content.0.text").String())
-	require.Equal(t, "opaque_history", gjson.GetBytes(updated, "input.2.encrypted_content").String())
+	require.Equal(t, "Compact this history", gjson.GetBytes(updated, "input.0.content.0.text").String())
+	require.Equal(t, "opaque_history", gjson.GetBytes(updated, "input.1.encrypted_content").String())
 	for _, field := range []string{"stream", "store", "include"} {
 		require.False(t, gjson.GetBytes(updated, field).Exists(), field)
 	}

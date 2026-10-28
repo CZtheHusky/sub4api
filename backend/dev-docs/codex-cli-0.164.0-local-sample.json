@@ -1,0 +1,61 @@
+{
+  "cli_version": "0.164.0",
+  "provider": "loopback mock with fake key",
+  "request_count": 1,
+  "exit_code": 0,
+  "top_level_keys": [
+    "model",
+    "stream",
+    "input",
+    "tool_choice",
+    "parallel_tool_calls",
+    "reasoning",
+    "store",
+    "include",
+    "prompt_cache_key",
+    "text",
+    "client_metadata"
+  ],
+  "originator": "codex_exec",
+  "user_agent": "codex_exec/0.164.0 (Ubuntu 24.4.0; x86_64) dumb (codex_exec; 0.164.0)",
+  "parallel_tool_calls": false,
+  "input_shapes": [
+    {
+      "type": "additional_tools",
+      "role": "developer",
+      "id_uuid_version": "7"
+    },
+    {
+      "type": "message",
+      "role": "developer",
+      "id_uuid_version": "7"
+    },
+    {
+      "type": "message",
+      "role": "developer",
+      "id_uuid_version": "7"
+    },
+    {
+      "type": "message",
+      "role": "developer",
+      "id_uuid_version": "7"
+    },
+    {
+      "type": "message",
+      "role": "developer",
+      "id_uuid_version": "7"
+    },
+    {
+      "type": "message",
+      "role": "user",
+      "id_uuid_version": "7"
+    },
+    {
+      "type": "message",
+      "role": "user",
+      "id_uuid_version": "7"
+    }
+  ],
+  "real_home_visible": false,
+  "external_routes": []
+}

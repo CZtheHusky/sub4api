@@ -109,10 +109,10 @@ func TestOpenAIGatewayService_OAuthPassthrough_SanitizesNativeToolItemIDs(t *tes
 			require.NotNil(t, result)
 			require.NotNil(t, upstream.lastReq)
 			require.Equal(t, "https://chatgpt.com/backend-api/codex/responses", upstream.lastReq.URL.String())
-			require.False(t, gjson.GetBytes(upstream.lastBody, "input.0.id").Exists())
-			require.Equal(t, "ctc_valid", gjson.GetBytes(upstream.lastBody, "input.1.id").String())
-			require.False(t, gjson.GetBytes(upstream.lastBody, "input.2.id").Exists())
-			require.Equal(t, "tsc_valid", gjson.GetBytes(upstream.lastBody, "input.3.id").String())
+			require.False(t, gjson.GetBytes(upstream.lastBody, "input.1.id").Exists())
+			require.Equal(t, "ctc_valid", gjson.GetBytes(upstream.lastBody, "input.2.id").String())
+			require.False(t, gjson.GetBytes(upstream.lastBody, "input.3.id").Exists())
+			require.Equal(t, "tsc_valid", gjson.GetBytes(upstream.lastBody, "input.4.id").String())
 		})
 	}
 }
@@ -154,8 +154,8 @@ func TestOpenAIGatewayService_SetupTokenLegacy_SanitizesAndTransforms(t *testing
 	require.Equal(t, false, gjson.GetBytes(upstream.lastBody, "store").Bool())
 	require.Equal(t, "max", gjson.GetBytes(upstream.lastBody, "reasoning.effort").String())
 	require.False(t, gjson.GetBytes(upstream.lastBody, "reasoning.mode").Exists())
-	require.False(t, gjson.GetBytes(upstream.lastBody, "input.0.id").Exists())
-	require.Len(t, gjson.GetBytes(upstream.lastBody, "input").Array(), 1)
+	require.False(t, gjson.GetBytes(upstream.lastBody, "input.1.id").Exists())
+	require.Len(t, gjson.GetBytes(upstream.lastBody, "input").Array(), 2)
 }
 
 // TestOpenAIGatewayService_APIKeyPassthrough_StripsInvalidReasoningItemIDs

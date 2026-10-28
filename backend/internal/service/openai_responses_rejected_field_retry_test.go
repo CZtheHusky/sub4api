@@ -377,7 +377,7 @@ func TestNormalizeOpenAIResponsesRejectedFieldRetryBodyRejectsUnsafeIndexedMutat
 func TestOpenAIGatewayService_OAuthRetriesExactRejectedStatus(t *testing.T) {
 	body := []byte(`{"model":"gpt-5.5","stream":true,"instructions":"test","input":[{"type":"message","role":"user","status":"completed","content":"hello"}]}`)
 	upstream := &httpUpstreamRecorder{responses: []*http.Response{
-		newOpenAIRejectedFieldTestResponse(http.StatusBadRequest, `{"error":{"code":"unknown_parameter","message":"Unknown parameter: 'input[0].status'.","param":"input[0].status"}}`),
+		newOpenAIRejectedFieldTestResponse(http.StatusBadRequest, `{"error":{"code":"unknown_parameter","message":"Unknown parameter: 'input[1].status'.","param":"input[1].status"}}`),
 		newOpenAIRejectedFieldTestResponse(http.StatusOK, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_ok\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\ndata: [DONE]\n\n"),
 	}}
 	upstream.responses[1].Header.Set("Content-Type", "text/event-stream")
@@ -389,8 +389,8 @@ func TestOpenAIGatewayService_OAuthRetriesExactRejectedStatus(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Len(t, upstream.bodies, 2)
-	require.Equal(t, "completed", gjson.GetBytes(upstream.bodies[0], "input.0.status").String())
-	require.False(t, gjson.GetBytes(upstream.bodies[1], "input.0.status").Exists())
+	require.Equal(t, "completed", gjson.GetBytes(upstream.bodies[0], "input.1.status").String())
+	require.False(t, gjson.GetBytes(upstream.bodies[1], "input.1.status").Exists())
 }
 
 func TestOpenAIGatewayService_APIKeyRetriesExactRejectedNullMessageContent(t *testing.T) {
@@ -594,8 +594,8 @@ func TestOpenAIGatewayService_OpenAIHTTPStripsInputNamespacesBeforeFirstForward(
 				require.NoError(t, err)
 				require.NotNil(t, result)
 				require.Len(t, upstream.bodies, 1, "namespace must be removed before the first upstream request")
-				require.False(t, gjson.GetBytes(upstream.bodies[0], "input.0.namespace").Exists())
-				require.Equal(t, "nested-keep", gjson.GetBytes(upstream.bodies[0], "input.0.content.0.namespace").String())
+				require.False(t, gjson.GetBytes(upstream.bodies[0], `input.#(role=="user").namespace`).Exists())
+				require.Equal(t, "nested-keep", gjson.GetBytes(upstream.bodies[0], `input.#(role=="user").content.0.namespace`).String())
 			})
 		}
 	}

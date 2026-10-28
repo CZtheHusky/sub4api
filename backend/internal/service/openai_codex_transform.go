@@ -88,7 +88,6 @@ type codexTransformResult struct {
 }
 
 type codexOAuthTransformOptions struct {
-	IsCodexCLI                          bool
 	IsCompact                           bool
 	SkipDefaultInstructions             bool
 	PreserveToolCallIDs                 bool
@@ -169,10 +168,9 @@ var openAICodexOAuthUnsupportedFields = append([]string{
 	"presence_penalty",
 }, openAIChatGPTInternalUnsupportedFields...)
 
-func applyCodexOAuthTransform(reqBody map[string]any, isCodexCLI bool, isCompact bool) codexTransformResult {
+func applyCodexOAuthTransform(reqBody map[string]any, isCompact bool) codexTransformResult {
 	return applyCodexOAuthTransformWithOptions(reqBody, codexOAuthTransformOptions{
-		IsCodexCLI: isCodexCLI,
-		IsCompact:  isCompact,
+		IsCompact: isCompact,
 	})
 }
 
@@ -292,17 +290,23 @@ func applyCodexOAuthTransformWithOptions(reqBody map[string]any, opts codexOAuth
 		}
 	}
 
-	// ChatGPT internal Codex endpoint does not accept role:"system".
-	// Mirror its text into instructions because Codex OAuth requires it. Some
-	// callers must also keep the guidance in input as developer (notably
-	// Responses JSON object mode), while Chat Completions compatibility can
-	// omit text-only messages after promoting them losslessly.
-	if extractSystemMessagesFromInput(reqBody, opts.OmitPromotedSystemMessagesFromInput) {
+	// Only legacy compaction still uses top-level instructions. Ordinary
+	// responses migrate guidance to developer input at the final wire boundary.
+	if opts.IsCompact && extractSystemMessagesFromInput(reqBody, opts.OmitPromotedSystemMessagesFromInput) {
 		result.Modified = true
 	}
+	if !opts.IsCompact {
+		if input, ok := reqBody["input"].([]any); ok {
+			for _, raw := range input {
+				if item, ok := raw.(map[string]any); ok && item["role"] == "system" {
+					item["role"] = "developer"
+					result.Modified = true
+				}
+			}
+		}
+	}
 
-	// instructions 处理逻辑：根据是否是 Codex CLI 分别调用不同方法
-	if !opts.SkipDefaultInstructions && applyInstructions(reqBody, opts.IsCodexCLI) {
+	if !opts.SkipDefaultInstructions && applyInstructions(reqBody) {
 		result.Modified = true
 	}
 	if isCodexSparkModel(normalizedModel) && applyCodexSparkImageUnsupportedInstructions(reqBody) {
@@ -1541,8 +1545,8 @@ func applyCodexClientMetadata(reqBody map[string]any, account *Account) bool {
 }
 
 // applyInstructions 处理 instructions 字段：仅在 instructions 为空时填充默认值。
-func applyInstructions(reqBody map[string]any, isCodexCLI bool) bool {
-	if !isInstructionsEmpty(reqBody) {
+func applyInstructions(reqBody map[string]any) bool {
+	if !isInstructionsEmpty(reqBody) || extractPromptLikeInstructionsFromInput(reqBody) != "" {
 		return false
 	}
 	model, _ := reqBody["model"].(string)

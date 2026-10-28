@@ -304,19 +304,23 @@ func normalizeCodexRequestMetadata(body []byte, headers http.Header, account *Ac
 		return body, false, err
 	}
 	changed = changed || defaultsChanged
-	if !changed {
-		return body, false, nil
-	}
-	raw, err := json.Marshal(cm)
-	if err != nil {
-		return body, false, err
-	}
 	next := body
-	next, err = sjson.SetRawBytes(next, "client_metadata", raw)
+	if changed {
+		raw, err := json.Marshal(cm)
+		if err != nil {
+			return body, false, err
+		}
+		next, err = sjson.SetRawBytes(next, "client_metadata", raw)
+		if err != nil {
+			return body, false, err
+		}
+	}
+	threadID, _ := cm["thread_id"].(string)
+	next, prefixChanged, err := normalizeCodexRequestPrefix(next, threadID)
 	if err != nil {
 		return body, false, err
 	}
-	return next, true, nil
+	return next, changed || prefixChanged, nil
 }
 
 func normalizeCodexClientMetadata(cm map[string]any, headers http.Header, isCompact bool) (bool, error) {
@@ -612,7 +616,7 @@ func normalizeCodexRequestMetadataMap(payload map[string]any, headers http.Heade
 			}
 		}
 	}
-	body, err := json.Marshal(payload)
+	body, err := marshalOpenAIUpstreamJSON(payload)
 	if err != nil {
 		return err
 	}
@@ -626,6 +630,23 @@ func normalizeCodexRequestMetadataMap(payload map[string]any, headers http.Heade
 	}
 	if defaultsChanged || changed {
 		payload["client_metadata"] = cm
+	}
+	threadID, _ := cm["thread_id"].(string)
+	next, prefixChanged, err := normalizeCodexRequestPrefix(body, threadID)
+	if err != nil {
+		return err
+	}
+	if prefixChanged {
+		var input any
+		if raw := gjson.GetBytes(next, "input"); raw.Exists() {
+			if err := decodeOpenAIJSONUseNumber([]byte(raw.Raw), &input); err != nil {
+				return err
+			}
+			payload["input"] = input
+		}
+		if !gjson.GetBytes(next, "instructions").Exists() {
+			delete(payload, "instructions")
+		}
 	}
 	return nil
 }

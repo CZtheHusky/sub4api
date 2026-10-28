@@ -258,7 +258,7 @@ func TestForwardOpenAIRequestLocaleUsesFormalPath(t *testing.T) {
 			body, _ = sjson.SetBytes(body, "model", "gpt-5.4")
 			body, _ = sjson.SetBytes(body, "stream", false)
 			body, _ = sjson.SetBytes(body, "instructions", "test")
-			body, _ = sjson.SetBytes(body, "input.0.type", "message")
+			body, _ = sjson.SetBytes(body, "input.1.type", "message")
 			body, _ = sjson.DeleteBytes(body, "tools")
 			client.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 			client.Request.Header.Set("Content-Type", "application/json")
@@ -285,7 +285,7 @@ func TestForwardOpenAIRequestLocaleUsesFormalPath(t *testing.T) {
 			// 可判别特征（官方 codex-rs 从不发送），在 Codex OAuth 出站线上
 			// 由线序收口删除，无论入站是否携带。
 			require.Empty(t, upstream.lastReq.Header.Get("Accept-Language"))
-			for _, part := range gjson.GetBytes(upstream.lastBody, "input.0.content").Array() {
+			for _, part := range gjson.GetBytes(upstream.lastBody, "input.1.content").Array() {
 				require.Equal(t, strings.Replace(environment, "Asia/Shanghai", "Asia/Singapore", 1), part.Get("text").String())
 			}
 		}

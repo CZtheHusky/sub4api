@@ -22,7 +22,7 @@ func TestOAuthInputInternalMetadata(t *testing.T) {
 			if err := json.Unmarshal(b, &req); err != nil {
 				return nil, false, err
 			}
-			result := applyCodexOAuthTransform(req, false, false)
+			result := applyCodexOAuthTransform(req, false)
 			out, err := json.Marshal(req)
 			return out, result.Modified, err
 		}, true},

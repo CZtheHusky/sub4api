@@ -338,11 +338,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket identity metadata", fingerprintErr)
 			}
 			stageCodexFingerprintIDs(c, ids)
-			metadataBody, _, metadataErr := normalizeCodexRequestMetadata(fingerprintBody, nil, account, false)
-			if metadataErr != nil {
-				return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket identity metadata", metadataErr)
-			}
-			normalized = metadataBody
+			normalized = fingerprintBody
 		}
 		if responsesLite {
 			litePayload, _, liteErr := normalizeOpenAIResponsesLitePayloadForAccount(normalized, account)
@@ -500,6 +496,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		}
 		normalized = policyApplied
 		ingressSessionOriginalModel = originalModel
+		if metadataBody, _, metadataErr := normalizeCodexRequestMetadata(normalized, nil, account, false); metadataErr != nil {
+			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket identity metadata", metadataErr)
+		} else {
+			normalized = metadataBody
+		}
 
 		return openAIWSClientPayload{
 			payloadRaw:               normalized,
@@ -523,30 +524,47 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		return clientConn.Write(writeCtx, coderws.MessageText, message)
 	}
 
+	var ingressControl *openAIWSIngressControl
+	var idleInterrupt func([]byte) error
 	readClientMessage := func() ([]byte, error) {
-		idleTimeout := s.openAIWSIngressInterTurnIdleTimeout()
-		msgType, payload, readErr := ReadOpenAIWSClientMessage(
-			ctx,
-			clientConn,
-			idleTimeout,
-			coderws.StatusNormalClosure,
-			"websocket idle timeout",
-		)
-		if readErr != nil {
-			var closeErr *OpenAIWSClientCloseError
-			if errors.As(readErr, &closeErr) && closeErr.StatusCode() == coderws.StatusNormalClosure {
-				logOpenAIWSModeInfo("ingress_ws_inter_turn_idle_timeout account_id=%d timeout_seconds=%d", account.ID, int(idleTimeout.Seconds()))
+		for {
+			idleTimeout := s.openAIWSIngressInterTurnIdleTimeout()
+			var msgType coderws.MessageType
+			var payload []byte
+			var readErr error
+			if ingressControl != nil {
+				msgType, payload, readErr = ingressControl.readClient()
+			} else {
+				msgType, payload, readErr = ReadOpenAIWSClientMessage(
+					ctx,
+					clientConn,
+					idleTimeout,
+					coderws.StatusNormalClosure,
+					"websocket idle timeout",
+				)
 			}
-			return nil, readErr
+			if readErr != nil {
+				var closeErr *OpenAIWSClientCloseError
+				if errors.As(readErr, &closeErr) && closeErr.StatusCode() == coderws.StatusNormalClosure {
+					logOpenAIWSModeInfo("ingress_ws_inter_turn_idle_timeout account_id=%d timeout_seconds=%d", account.ID, int(idleTimeout.Seconds()))
+				}
+				return nil, readErr
+			}
+			if msgType != coderws.MessageText && msgType != coderws.MessageBinary {
+				return nil, NewOpenAIWSClientCloseError(
+					coderws.StatusPolicyViolation,
+					fmt.Sprintf("unsupported websocket client message type: %s", msgType.String()),
+					nil,
+				)
+			}
+			if idleInterrupt != nil && gjson.GetBytes(payload, "type").String() == "response.interrupt" {
+				if err := idleInterrupt(payload); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			return payload, nil
 		}
-		if msgType != coderws.MessageText && msgType != coderws.MessageBinary {
-			return nil, NewOpenAIWSClientCloseError(
-				coderws.StatusPolicyViolation,
-				fmt.Sprintf("unsupported websocket client message type: %s", msgType.String()),
-				nil,
-			)
-		}
-		return payload, nil
 	}
 
 	firstPayload, err := parseClientPayload(1, firstClientMessage)
@@ -598,6 +616,18 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	refreshIngressRouteState(firstPayload)
 
 	if useHTTPBridge {
+		ingressControl = &openAIWSIngressControl{ctx: ctx, conn: clientConn,
+			idleTimeout: s.openAIWSIngressInterTurnIdleTimeout(), idleStart: make(chan struct{}, 1)}
+		defer func() { ingressControl.close(returnErr) }()
+		idleInterrupt = func(payload []byte) error {
+			ack, err := json.Marshal(map[string]any{"type": "response.interrupt.failed",
+				"response_id": gjson.GetBytes(payload, "response_id").String(),
+				"error":       map[string]any{"code": "unsupported_operation", "message": "HTTP upstream does not support response.interrupt"}})
+			if err != nil {
+				return err
+			}
+			return writeClientMessage(ack)
+		}
 		logOpenAIWSModeInfo(
 			"ingress_ws_http_bridge_start account_id=%d account_type=%s payload_bytes=%d threshold_bytes=%d has_session_hash=%v store_disabled=%v",
 			account.ID,
@@ -709,21 +739,23 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 					return fmt.Errorf("resolve Grok websocket cache identity: %w", err)
 				}
 			}
-			result, bridgeErr := s.proxyOpenAIWSHTTPBridgeTurn(
-				ctx,
-				c,
-				account,
-				token,
-				bridgePayloadRaw,
-				bridgePayloadBytes,
-				currentBridgePayload.originalModel,
-				currentBridgePayload.imageBillingModel,
-				currentBridgePayload.imageSizeTier,
-				currentBridgePayload.imageInputSize,
-				grokCacheIdentity,
-				turn,
-				writeClientMessage,
-			)
+			result, bridgeErr := ingressControl.relayHTTP(func(write func([]byte) error) (*OpenAIForwardResult, error) {
+				return s.proxyOpenAIWSHTTPBridgeTurn(
+					ctx,
+					c,
+					account,
+					token,
+					bridgePayloadRaw,
+					bridgePayloadBytes,
+					currentBridgePayload.originalModel,
+					currentBridgePayload.imageBillingModel,
+					currentBridgePayload.imageSizeTier,
+					currentBridgePayload.imageInputSize,
+					grokCacheIdentity,
+					turn,
+					write,
+				)
+			}, writeClientMessage, idleInterrupt)
 			if bridgeErr != nil && isOpenAIWSSessionPreempted(ctx) {
 				return errOpenAIWSSessionPreempted
 			}
@@ -1000,6 +1032,31 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	}
 
 	clientRequestID, _ := ctx.Value(ctxkey.ClientRequestID).(string)
+	ingressControl = &openAIWSIngressControl{ctx: ctx, conn: clientConn,
+		idleTimeout: s.openAIWSIngressInterTurnIdleTimeout(), idleStart: make(chan struct{}, 1)}
+	defer func() { ingressControl.close(returnErr) }()
+	drainInterrupt := func(lease *openAIWSConnLease) error {
+		deadline := time.Now().Add(time.Second)
+		for ingressControl.interruptID != "" {
+			remaining := time.Until(deadline)
+			if remaining <= 0 {
+				ingressControl.interruptID = ""
+				lease.MarkBroken()
+				return context.DeadlineExceeded
+			}
+			message, err := ingressControl.readUpstream(lease, remaining, s.openAIWSWriteTimeout())
+			if err != nil {
+				ingressControl.interruptID = ""
+				lease.MarkBroken()
+				return err
+			}
+			if err := writeClientMessage(message); err != nil {
+				lease.MarkBroken()
+				return err
+			}
+		}
+		return nil
+	}
 	var rejectedFieldRetryState *openAIResponsesRejectedFieldRetryState
 	sendAndRelay := func(turn int, lease *openAIWSConnLease, strict bool, payload []byte, payloadBytes int, originalModel string, imageBillingModel string, imageSizeTier string, imageInputSize string, requestedReasoningEffort *string) (*OpenAIForwardResult, error) {
 		responseModelObserver := &upstreamResponseModelObserver{}
@@ -1059,7 +1116,15 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 		}
 		for {
-			upstreamMessage, readErr := lease.ReadMessageWithContextTimeout(ctx, s.openAIWSReadTimeout())
+			var upstreamMessage []byte
+			var readErr error
+			if !wroteDownstream {
+				// Before the first visible event, account failover still owns the
+				// downstream socket; do not start a reader that would close it.
+				upstreamMessage, readErr = lease.ReadMessageWithContextTimeout(ctx, s.openAIWSReadTimeout())
+			} else {
+				upstreamMessage, readErr = ingressControl.readUpstream(lease, s.openAIWSReadTimeout(), s.openAIWSWriteTimeout())
+			}
 			if readErr != nil {
 				lease.MarkBroken()
 				return nil, wrapOpenAIWSIngressTurnError(
@@ -1326,6 +1391,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 					result.ImageOutputSizes = imageCounter.Sizes()
 					result.BillingModel = imageBillingModel
 				}
+				// Completion owns usage and replay, even if a late interrupt ack
+				// fails to arrive. Discard that connection, not the completed turn.
+				if err := drainInterrupt(lease); err != nil {
+					logOpenAIWSModeInfo("ingress_ws_interrupt_drain_failed account_id=%d turn=%d err=%v", account.ID, turn, err)
+				}
 				return result, nil
 			}
 		}
@@ -1347,6 +1417,17 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		return strings.TrimSpace(openAIWSPayloadStringFromRaw(payload, "previous_response_id")) != ""
 	}
 	var sessionLease *openAIWSConnLease
+	idleInterrupt = func(payload []byte) error {
+		if sessionLease == nil {
+			return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "no response to interrupt", nil)
+		}
+		if err := sessionLease.WriteJSONWithContextTimeout(ctx, json.RawMessage(payload), s.openAIWSWriteTimeout()); err != nil {
+			sessionLease.MarkBroken()
+			return err
+		}
+		ingressControl.interruptID = gjson.GetBytes(payload, "response_id").String()
+		return drainInterrupt(sessionLease)
+	}
 	sessionConnID := ""
 	pinnedSessionConnID := ""
 	unpinSessionConn := func(connID string) {

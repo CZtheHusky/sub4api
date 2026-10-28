@@ -336,6 +336,13 @@ func newOpenAIUpstreamFailoverError(
 		RetryableOnSameAccount: retryableOnSameAccount || requestScopedCapacity,
 		RequestScopedTransient: requestScopedCapacity,
 	}
+	if raw, deadline := openAIUpstreamRetryAfter(responseHeaders, responseBody); raw != "" {
+		failoverErr.RetryAfter = deadline
+		if failoverErr.ResponseHeaders == nil {
+			failoverErr.ResponseHeaders = make(http.Header)
+		}
+		failoverErr.ResponseHeaders.Set("Retry-After", raw)
+	}
 	if isOpenAIRequestBodyTooLargeError(statusCode, upstreamMsg, responseBody) {
 		failoverErr.RetryableOnSameAccount = false
 		failoverErr.RequestScopedTransient = false
@@ -495,9 +502,9 @@ func marshalOpenAIUpstreamJSON(v any) ([]byte, error) {
 // bytes of the body are a client signature. Re-serializing a decoded Go map
 // emits keys alphabetically, which is not what a Codex client produces.
 var codexResponsesOfficialTopLevelKeyOrder = []string{
-	"model", "stream", "service_tier", "instructions", "input", "tools",
+	"model", "stream", "service_tier", "previous_response_id", "input", "tools",
 	"tool_choice", "parallel_tool_calls", "reasoning", "store",
-	"stream_options", "include", "prompt_cache_key", "text",
+	"stream_options", "include", "prompt_cache_key", "text", "generate",
 	"client_metadata", "access_programs",
 }
 

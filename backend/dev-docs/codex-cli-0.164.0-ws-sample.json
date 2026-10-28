@@ -1,0 +1,319 @@
+{
+  "cli_version": "0.164.0",
+  "control_transport": "app-server stdio",
+  "inference_transport": "Responses WS",
+  "isolation": {
+    "real_accounts_used": false,
+    "external_network": false,
+    "empty_home": true,
+    "credentials": "fake local values"
+  },
+  "gateway_scope": "ProxyResponsesWebSocketFromClient, OAuth ctx_pool, production WS dialer redirected to loopback; no DB/auth middleware/account scheduler",
+  "runs": {
+    "direct": {
+      "unit": "codex164-cli-ws-probe5.service",
+      "exit_code": 0,
+      "selected_handshake_headers": {
+        "user-agent": "codex_ws_local_probe/0.164.0 (Ubuntu 24.4.0; x86_64) dumb (codex_ws_local_probe; 0.164.0)",
+        "originator": "codex_ws_local_probe",
+        "openai-beta": "responses_websockets=2026-02-06",
+        "sec-websocket-extensions": "permessage-deflate; client_max_window_bits",
+        "x-codex-beta-features": "remote_compaction_v2"
+      }
+    },
+    "gateway": {
+      "unit": "codex164-cli-ws-gateway.service",
+      "exit_code": 0,
+      "selected_handshake_headers": {
+        "user-agent": "codex-tui/0.164.0 (Windows 10.0.22621.1848; x86_64) dumb",
+        "originator": "codex-tui",
+        "version": "0.164.0",
+        "openai-beta": "responses_websockets=2026-02-06",
+        "sec-websocket-extensions": "permessage-deflate",
+        "x-codex-beta-features": "remote_compaction_v2"
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "name": "continuation",
+      "direct": {
+        "connections": 1,
+        "creates": 2,
+        "prewarms": 1,
+        "interrupts": [],
+        "turn_statuses": [
+          "completed",
+          "completed"
+        ],
+        "previous_response_ids": [
+          "resp_prewarm",
+          "resp_continuation_1"
+        ],
+        "create_interval_seconds": 0.008969004265964031,
+        "input_item_counts": [
+          0,
+          7,
+          1
+        ],
+        "input_id_uuid_versions": [
+          7
+        ]
+      },
+      "gateway": {
+        "connections": 1,
+        "creates": 2,
+        "prewarms": 1,
+        "interrupts": [],
+        "turn_statuses": [
+          "completed",
+          "completed"
+        ],
+        "previous_response_ids": [
+          "resp_prewarm",
+          "resp_continuation_1"
+        ],
+        "create_interval_seconds": 0.008473794907331467,
+        "input_item_counts": [
+          0,
+          7,
+          1
+        ],
+        "input_id_uuid_versions": [
+          7
+        ]
+      },
+      "same_top_level_key_order": true,
+      "same_input_type_role_sequence": true
+    },
+    {
+      "name": "cancel",
+      "direct": {
+        "connections": 2,
+        "creates": 2,
+        "prewarms": 1,
+        "interrupts": [],
+        "turn_statuses": [
+          "interrupted",
+          "completed"
+        ],
+        "previous_response_ids": [
+          "resp_prewarm",
+          null
+        ],
+        "create_interval_seconds": 0.013307655230164528,
+        "input_item_counts": [
+          0,
+          7,
+          9
+        ],
+        "input_id_uuid_versions": [
+          7
+        ]
+      },
+      "gateway": {
+        "connections": 2,
+        "creates": 2,
+        "prewarms": 1,
+        "interrupts": [],
+        "turn_statuses": [
+          "interrupted",
+          "completed"
+        ],
+        "previous_response_ids": [
+          "resp_prewarm",
+          null
+        ],
+        "create_interval_seconds": 0.020493430085480213,
+        "input_item_counts": [
+          0,
+          7,
+          9
+        ],
+        "input_id_uuid_versions": [
+          7
+        ]
+      },
+      "same_top_level_key_order": true,
+      "same_input_type_role_sequence": true
+    },
+    {
+      "name": "steer_ack_first",
+      "direct": {
+        "connections": 1,
+        "creates": 2,
+        "prewarms": 1,
+        "interrupts": [
+          {
+            "type": "response.interrupt",
+            "response_id": "resp_steer_ack_first_1",
+            "mode": "discard_partial_items"
+          }
+        ],
+        "turn_statuses": [
+          "completed"
+        ],
+        "previous_response_ids": [
+          "resp_prewarm",
+          "resp_steer_ack_first_1"
+        ],
+        "create_interval_seconds": 0.0081095639616251,
+        "input_item_counts": [
+          0,
+          7,
+          1
+        ],
+        "input_id_uuid_versions": [
+          7
+        ]
+      },
+      "gateway": {
+        "connections": 1,
+        "creates": 2,
+        "prewarms": 1,
+        "interrupts": [
+          {
+            "type": "response.interrupt",
+            "response_id": "resp_steer_ack_first_1",
+            "mode": "discard_partial_items"
+          }
+        ],
+        "turn_statuses": [
+          "completed"
+        ],
+        "previous_response_ids": [
+          "resp_prewarm",
+          "resp_steer_ack_first_1"
+        ],
+        "create_interval_seconds": 0.00534407701343298,
+        "input_item_counts": [
+          0,
+          7,
+          1
+        ],
+        "input_id_uuid_versions": [
+          7
+        ]
+      },
+      "same_top_level_key_order": true,
+      "same_input_type_role_sequence": true
+    },
+    {
+      "name": "steer_completion_first",
+      "direct": {
+        "connections": 1,
+        "creates": 2,
+        "prewarms": 1,
+        "interrupts": [
+          {
+            "type": "response.interrupt",
+            "response_id": "resp_steer_completion_first_1",
+            "mode": "discard_partial_items"
+          }
+        ],
+        "turn_statuses": [
+          "completed"
+        ],
+        "previous_response_ids": [
+          "resp_prewarm",
+          "resp_steer_completion_first_1"
+        ],
+        "create_interval_seconds": 0.004696188494563103,
+        "input_item_counts": [
+          0,
+          7,
+          1
+        ],
+        "input_id_uuid_versions": [
+          7
+        ]
+      },
+      "gateway": {
+        "connections": 1,
+        "creates": 2,
+        "prewarms": 1,
+        "interrupts": [
+          {
+            "type": "response.interrupt",
+            "response_id": "resp_steer_completion_first_1",
+            "mode": "discard_partial_items"
+          }
+        ],
+        "turn_statuses": [
+          "completed"
+        ],
+        "previous_response_ids": [
+          "resp_prewarm",
+          "resp_steer_completion_first_1"
+        ],
+        "create_interval_seconds": 0.006986862048506737,
+        "input_item_counts": [
+          0,
+          7,
+          1
+        ],
+        "input_id_uuid_versions": [
+          7
+        ]
+      },
+      "same_top_level_key_order": true,
+      "same_input_type_role_sequence": true
+    },
+    {
+      "name": "retry_after",
+      "direct": {
+        "connections": 2,
+        "creates": 2,
+        "prewarms": 1,
+        "interrupts": [],
+        "turn_statuses": [
+          "completed"
+        ],
+        "previous_response_ids": [
+          "resp_prewarm",
+          null
+        ],
+        "create_interval_seconds": 1.0115329129621387,
+        "input_item_counts": [
+          0,
+          7,
+          7
+        ],
+        "input_id_uuid_versions": [
+          7
+        ]
+      },
+      "gateway": {
+        "connections": 2,
+        "creates": 2,
+        "prewarms": 1,
+        "interrupts": [],
+        "turn_statuses": [
+          "completed"
+        ],
+        "previous_response_ids": [
+          "resp_prewarm",
+          null
+        ],
+        "create_interval_seconds": 1.0302176401019096,
+        "input_item_counts": [
+          0,
+          7,
+          7
+        ],
+        "input_id_uuid_versions": [
+          7
+        ]
+      },
+      "same_top_level_key_order": true,
+      "same_input_type_role_sequence": true
+    }
+  ],
+  "limits": [
+    "Custom provider with fake API key; no real OAuth backend",
+    "App-server control; TUI UI not driven",
+    "Mock declines permessage-deflate; compressed bytes not compared",
+    "TLS/HTTP2 and exact full-wire equivalence not tested"
+  ],
+  "id_clarification": "Default incremental mode uses UUIDv7 history items; non-incremental mode uses UUIDv5 temporary prefixes. Both match the public source. See codex-cli-0.164.0-id-ab.json."
+}

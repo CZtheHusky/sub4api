@@ -801,7 +801,7 @@ func TestOpenAIGatewayService_Forward_WSv2_OAuthStoreFalseByDefault(t *testing.T
 	require.False(t, gjson.Get(requestJSON, "store").Bool(), "默认策略应将 OAuth store 置为 false")
 	require.True(t, gjson.Get(requestJSON, "stream").Exists(), "WSv2 payload 应保留 stream 字段")
 	require.True(t, gjson.Get(requestJSON, "stream").Bool(), "OAuth Codex 规范化后应强制 stream=true")
-	require.Equal(t, "native-wsv2", gjson.Get(requestJSON, "input.0.namespace").String(), "OAuth WSv2 应保留原生 namespace")
+	require.Equal(t, "native-wsv2", gjson.Get(requestJSON, "input.1.namespace").String(), "OAuth WSv2 应保留原生 namespace")
 	require.Equal(t, openAIWSBetaV2Value, captureDialer.lastHeaders.Get("OpenAI-Beta"))
 	require.Equal(t, "remote_compaction_v2", captureDialer.lastHeaders.Get("x-codex-beta-features"))
 	// OAuth 会话隔离值随官方连字符头（session-id/thread-id）出站；下划线名
@@ -874,10 +874,10 @@ func TestOpenAIGatewayService_Forward_WSv2_OAuthSanitizesInvalidNativeToolItemID
 	captureConn.mu.Unlock()
 	requestJSON := requestToJSONString(requestPayload)
 	require.Equal(t, "response.create", gjson.Get(requestJSON, "type").String())
-	require.False(t, gjson.Get(requestJSON, "input.0.id").Exists(), "stale fc_* ID must not be replayed as a native custom_tool_call ID")
-	require.Equal(t, "ctc_hotfix", gjson.Get(requestJSON, "input.0.call_id").String())
-	require.Equal(t, "custom_tool_call_output", gjson.Get(requestJSON, "input.1.type").String())
+	require.False(t, gjson.Get(requestJSON, "input.1.id").Exists(), "stale fc_* ID must not be replayed as a native custom_tool_call ID")
 	require.Equal(t, "ctc_hotfix", gjson.Get(requestJSON, "input.1.call_id").String())
+	require.Equal(t, "custom_tool_call_output", gjson.Get(requestJSON, "input.2.type").String())
+	require.Equal(t, "ctc_hotfix", gjson.Get(requestJSON, "input.2.call_id").String())
 }
 
 func TestOpenAIGatewayService_Forward_WSv2_OAuthOriginatorCompatibility(t *testing.T) {

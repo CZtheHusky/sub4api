@@ -306,6 +306,19 @@ func TestProxyResponsesWebSocket_LifetimeRecoveryBoundaries(t *testing.T) {
 					require.NoError(t, err)
 					require.Equal(t, "error", gjson.GetBytes(terminal, "type").String())
 				}
+				// Keep reading like the CLI so the gateway can complete its close
+				// handshake and join the interrupt reader before returning.
+				for {
+					_, _, closeErr := client.Read(ctx)
+					if closeErr != nil {
+						require.NoError(t, ctx.Err(), "terminal failure must close before the session deadline")
+						if scenario == "after_output" {
+							require.Equal(t, coderws.StatusInternalError, coderws.CloseStatus(closeErr))
+						}
+						break
+					}
+				}
+
 				select {
 				case err := <-done:
 					require.Error(t, err)

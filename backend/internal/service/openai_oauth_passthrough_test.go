@@ -165,9 +165,11 @@ func TestOpenAIGatewayService_OAuthResponsesPromotesSystemMessageWithoutDuplicat
 	require.Error(t, err)
 	require.Nil(t, result)
 	require.NotEmpty(t, upstream.lastBody)
-	require.Equal(t, systemPrompt+"\n\n"+existingInstructions, gjson.GetBytes(upstream.lastBody, "instructions").String())
-	require.Equal(t, int64(1), gjson.GetBytes(upstream.lastBody, "input.#").Int())
-	require.Equal(t, "user", gjson.GetBytes(upstream.lastBody, "input.0.role").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "instructions").Exists())
+	require.Equal(t, existingInstructions, gjson.GetBytes(upstream.lastBody, "input.0.content.0.text").String())
+	require.Equal(t, systemPrompt, gjson.GetBytes(upstream.lastBody, "input.1.content").String())
+	require.Equal(t, int64(3), gjson.GetBytes(upstream.lastBody, "input.#").Int())
+	require.Equal(t, "user", gjson.GetBytes(upstream.lastBody, "input.2.role").String())
 	require.Equal(t, 1, strings.Count(string(upstream.lastBody), systemPrompt))
 }
 
@@ -447,10 +449,10 @@ func TestOpenAIGatewayService_OAuthPassthrough_StreamKeepsToolNameAndBodyNormali
 	// 1) 透传 OAuth 请求体与旧链路关键行为保持一致：store=false + stream=true。
 	require.Equal(t, false, gjson.GetBytes(upstream.lastBody, "store").Bool())
 	require.Equal(t, true, gjson.GetBytes(upstream.lastBody, "stream").Bool())
-	require.Equal(t, "local-test-instructions", strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "instructions").String()))
+	require.Equal(t, "local-test-instructions", strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "input.0.content.0.text").String()))
 	// 其余关键字段保持原值。
 	require.Equal(t, "gpt-5.2", gjson.GetBytes(upstream.lastBody, "model").String())
-	require.Equal(t, "hi", gjson.GetBytes(upstream.lastBody, "input.0.text").String())
+	require.Equal(t, "hi", gjson.GetBytes(upstream.lastBody, "input.1.text").String())
 
 	// 2) only auth is replaced; inbound auth/cookie are not forwarded
 	require.Equal(t, "Bearer oauth-token", upstream.lastReq.Header.Get("Authorization"))
@@ -562,10 +564,10 @@ func TestOpenAIGatewayService_OAuthPassthrough_PreservesNamespaceRequest(t *test
 	require.Equal(t, "spawn_agent", gjson.GetBytes(upstream.lastBody, "tools.1.tools.0.name").String())
 	require.Equal(t, "collaboration", gjson.GetBytes(upstream.lastBody, "tool_choice.namespace").String())
 	require.Equal(t, "spawn_agent", gjson.GetBytes(upstream.lastBody, "tool_choice.name").String())
-	require.Equal(t, "collaboration", gjson.GetBytes(upstream.lastBody, "input.0.namespace").String())
-	require.Equal(t, "spawn_agent", gjson.GetBytes(upstream.lastBody, "input.0.name").String())
-	require.False(t, gjson.GetBytes(upstream.lastBody, "input.1.namespace").Exists())
-	require.Equal(t, "nested", gjson.GetBytes(upstream.lastBody, "input.1.content.0.namespace").String())
+	require.Equal(t, "collaboration", gjson.GetBytes(upstream.lastBody, "input.1.namespace").String())
+	require.Equal(t, "spawn_agent", gjson.GetBytes(upstream.lastBody, "input.1.name").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "input.2.namespace").Exists())
+	require.Equal(t, "nested", gjson.GetBytes(upstream.lastBody, "input.2.content.0.namespace").String())
 	require.NotContains(t, string(upstream.lastBody), "collaboration__spawn_agent")
 
 	// 未摊平即无需回程还原，上游事件原样下发。
@@ -636,10 +638,10 @@ func TestOpenAIGatewayService_OAuthPassthrough_FlattenEnabledNamespaceRequestAnd
 	require.False(t, gjson.GetBytes(upstream.lastBody, "tools.1.tools").Exists())
 	require.Equal(t, "collaboration__spawn_agent", gjson.GetBytes(upstream.lastBody, "tool_choice.name").String())
 	require.False(t, gjson.GetBytes(upstream.lastBody, "tool_choice.namespace").Exists())
-	require.Equal(t, "collaboration__spawn_agent", gjson.GetBytes(upstream.lastBody, "input.0.name").String())
-	require.False(t, gjson.GetBytes(upstream.lastBody, "input.0.namespace").Exists())
+	require.Equal(t, "collaboration__spawn_agent", gjson.GetBytes(upstream.lastBody, "input.1.name").String())
 	require.False(t, gjson.GetBytes(upstream.lastBody, "input.1.namespace").Exists())
-	require.Equal(t, "nested", gjson.GetBytes(upstream.lastBody, "input.1.content.0.namespace").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "input.2.namespace").Exists())
+	require.Equal(t, "nested", gjson.GetBytes(upstream.lastBody, "input.2.content.0.namespace").String())
 	require.Len(t, upstream.bodies, 1)
 
 	downstream := rec.Body.String()
@@ -687,8 +689,8 @@ func TestOpenAIGatewayService_NativeOAuth_FlattenEnabledNamespaceRequestAndStrea
 	require.NotNil(t, result)
 	require.Equal(t, "function", gjson.GetBytes(upstream.lastBody, "tools.0.type").String())
 	require.Equal(t, "collaboration__spawn_agent", gjson.GetBytes(upstream.lastBody, "tools.0.name").String())
-	require.Equal(t, "collaboration__spawn_agent", gjson.GetBytes(upstream.lastBody, "input.0.name").String())
-	require.False(t, gjson.GetBytes(upstream.lastBody, "input.0.namespace").Exists())
+	require.Equal(t, "collaboration__spawn_agent", gjson.GetBytes(upstream.lastBody, "input.1.name").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "input.1.namespace").Exists())
 	require.NotContains(t, rec.Body.String(), "collaboration__spawn_agent")
 	require.Contains(t, rec.Body.String(), `"name":"spawn_agent"`)
 	require.Contains(t, rec.Body.String(), `"namespace":"collaboration"`)
@@ -931,7 +933,11 @@ func TestOpenAIGatewayService_OAuthPassthrough_CodexMissingInstructionsGetsDefau
 			} else {
 				require.False(t, gjson.GetBytes(upstream.lastBody, "stream").Exists())
 			}
-			require.Equal(t, strings.TrimSpace(defaultCodexSynthInstructions("gpt-5.1-codex-max")), strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "instructions").String()))
+			instructionPath := "instructions"
+			if stream {
+				instructionPath = "input.0.content.0.text"
+			}
+			require.Equal(t, strings.TrimSpace(defaultCodexSynthInstructions("gpt-5.1-codex-max")), strings.TrimSpace(gjson.GetBytes(upstream.lastBody, instructionPath).String()))
 		})
 	}
 }
@@ -969,7 +975,7 @@ func TestOpenAIGatewayService_Forward_MissingInstructionsUsesMappedModelTemplate
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "gpt-6-astra", gjson.GetBytes(upstream.lastBody, "model").String())
-	instructions := gjson.GetBytes(upstream.lastBody, "instructions").String()
+	instructions := gjson.GetBytes(upstream.lastBody, "input.0.content.0.text").String()
 	require.True(t, strings.HasPrefix(strings.TrimSpace(instructions), "You are Codex, an agent based on GPT-6."))
 	require.NotContains(t, instructions, "You are Codex, a coding agent based on GPT-5.")
 }

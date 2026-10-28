@@ -80,7 +80,7 @@ func TestApplyCodexOAuthTransform_ReservedPythonNameIsOAuthOnly(t *testing.T) {
 		"tools": []any{map[string]any{"type": "function", "name": "PYTHON"}},
 	}
 
-	result := applyCodexOAuthTransform(reqBody, true, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.NoError(t, result.Error)
 	require.Equal(t, "PYTHON", result.ToolNameReverse[codexPythonToolAlias])
 	tools, ok := reqBody["tools"].([]any)
@@ -181,7 +181,7 @@ func TestAliasOpenAIOAuthReservedToolNames_PromptCompatibilityRunsFirst(t *testi
 	body := []byte(`{"model":"gpt-5.5","prompt":[{"type":"function_call","name":"python","call_id":"fc_1"}],"functions":[{"name":"python"}],"function_call":{"name":"python"},"sequence":900719925474099312345}`)
 	reqBody, err := getOpenAIRequestBodyMap(nil, body)
 	require.NoError(t, err)
-	result := applyCodexOAuthTransform(reqBody, true, false)
+	result := applyCodexOAuthTransform(reqBody, false)
 	require.NoError(t, result.Error)
 	input, ok := reqBody["input"].([]any)
 	require.True(t, ok)

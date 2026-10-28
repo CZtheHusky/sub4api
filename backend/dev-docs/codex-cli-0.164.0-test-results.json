@@ -1,0 +1,144 @@
+{
+  "broad_regression": {
+    "log": "final-unit.log",
+    "counts_including_subtests": {
+      "service": {
+        "pass": 4612,
+        "fail": 2,
+        "skip": 1
+      },
+      "handler": {
+        "pass": 521
+      },
+      "repository": {
+        "pass": 103
+      }
+    },
+    "failures": [
+      "TestOpenAIGatewayService_SelectAccountWithScheduler_RequiredWSV2_NoAvailableAccount",
+      "TestForwardAsAnthropic_OAuthKeepsSystemAsDeveloperInput"
+    ],
+    "skips": [
+      "TestEstimateOpenAIInputTokens_CompareWithOpenAIAPI"
+    ]
+  },
+  "baseline": {
+    "log": "baseline-scheduler.log",
+    "counts_including_subtests": {
+      "service": {
+        "fail": 1
+      }
+    },
+    "failures": [
+      "TestOpenAIGatewayService_SelectAccountWithScheduler_RequiredWSV2_NoAvailableAccount"
+    ],
+    "skips": []
+  },
+  "final_race": {
+    "log": "race-final.log",
+    "counts_including_subtests": {
+      "service": {
+        "pass": 48
+      },
+      "handler": {
+        "pass": 24
+      }
+    },
+    "failures": [],
+    "skips": []
+  },
+  "notes": [
+    "Broad regression preceded the final close-code fix and updated Anthropic assertion; final race covers those changes.",
+    "Scheduler failure also reproduces on unchanged HEAD.",
+    "Real API test skipped; credentials were not provided.",
+    "2026-10-27: the stale scheduler fixture now explicitly disables OAuth WS; production scheduling was not changed.",
+    "Final release regression: 5241 passed including subtests, zero failures, one intentionally skipped real API test.",
+    "The first added prefix test omitted the Lite flag; corrected the fixture and reran the complete selected regression successfully. Earlier logs are retained."
+  ],
+  "installed_cli_ws": {
+    "direct_scenarios_passed": 5,
+    "gateway_scenarios_passed": 5,
+    "report": "codex-cli-0.164.0-ws-sample.json",
+    "production_changes_in_this_followup": false,
+    "logs": [
+      "cli-ws-probe5.log",
+      "cli-ws-gateway.log"
+    ]
+  },
+  "installed_cli_id_ab": {
+    "unit": "codex164-cli-id-ab.service",
+    "exit_code": 0,
+    "report": "codex-cli-0.164.0-id-ab.json",
+    "production_changes": false
+  },
+  "release_regression": {
+    "unit": "codex164-release-final.service",
+    "log": "release-final.log",
+    "counts_including_subtests": {
+      "service": {
+        "pass": 4617,
+        "fail": 0,
+        "skip": 1
+      },
+      "handler": {
+        "pass": 521,
+        "fail": 0,
+        "skip": 0
+      },
+      "repository": {
+        "pass": 103,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    "failures": [],
+    "skips": [
+      "TestEstimateOpenAIInputTokens_CompareWithOpenAIAPI"
+    ],
+    "exit_code": 0
+  },
+  "fullstack": {
+    "http": {
+      "generations": 4,
+      "prefix_equal_across_requests": true,
+      "prefix_ids": [
+        "at_6b122121-2b71-513e-9a4d-61fee7764e3f",
+        "msg_7292ec70-4886-5806-b757-30754d9d19ef"
+      ],
+      "stable_thread": true,
+      "stable_prompt_cache_key": true
+    },
+    "ws": {
+      "generations": 4,
+      "prefix_equal_across_requests": true,
+      "prefix_ids": [
+        "at_45c0d8d3-c535-550b-bbb9-25fd73ffa2cb",
+        "msg_e0a2c93d-d115-5213-8d71-e0eb01ec0878"
+      ],
+      "stable_thread": true,
+      "stable_prompt_cache_key": true
+    },
+    "authorized_real_accounts_used": false,
+    "upstream": "local TLS mock only",
+    "invalid_auth_rejected": true,
+    "zero_balance_rejected": true,
+    "http_and_ws_auth_checks": true,
+    "disabled_account_selected": false,
+    "interrupt_billed_once": true,
+    "usage_rows": 8,
+    "billing_balanced": true,
+    "mock_cached_tokens_per_generation": 40,
+    "real_cache_tested": false,
+    "candidate_exit_code": 0,
+    "baseline_restart_retained_usage_rows": 8,
+    "date": "2026-10-27",
+    "unit": "codex164-fullstack-final.service",
+    "exit_code": 0,
+    "baseline_commit": "e59fb52e2327aad880cbf2f2c983a161b0df4a3b",
+    "postgres": "18-alpine",
+    "redis": "8-alpine",
+    "network": "none; loopback only; no published ports",
+    "source_reproduction": "codex-cli-0.164.0-fullstack-probe.tar.gz",
+    "note": "The cached-token counts and charges are assertions against a local mock, not measurements of upstream prompt-cache effectiveness."
+  }
+}

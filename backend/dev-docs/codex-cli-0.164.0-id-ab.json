@@ -1,0 +1,36 @@
+{
+  "binary_version": "0.164.0",
+  "same_binary": true,
+  "real_accounts_used": false,
+  "finding": "Two source branches, not an established binary/source conflict. Default incremental history uses UUIDv7; non-incremental request prefixes use UUIDv5.",
+  "cases": [
+    {
+      "mode": "default",
+      "prefix_sent_in_prewarm": false,
+      "tool_id": "at_01a17bf0-61ce-7e10-be2d-00950a6b4153",
+      "base_instructions_id": "msg_01a17bf0-61ce-7e10-be2d-00a40bbee10f",
+      "uuid_versions": {
+        "tool": 7,
+        "base_instructions": 7
+      },
+      "base_matches_public_v5_formula": false
+    },
+    {
+      "mode": "incremental_tools_false",
+      "prefix_sent_in_prewarm": true,
+      "tool_id": "at_2fec6307-22af-566d-a683-e87a297bd1a4",
+      "base_instructions_id": "msg_08afa4a0-79a2-50f2-a4b8-0c54a683f4cc",
+      "uuid_versions": {
+        "tool": 5,
+        "base_instructions": 5
+      },
+      "base_matches_public_v5_formula": true
+    }
+  ],
+  "default_prefix_preserved": {
+    "retry_after": true,
+    "cancel": true
+  },
+  "ab_unit": "codex164-cli-id-ab.service",
+  "ab_exit_code": 0
+}
