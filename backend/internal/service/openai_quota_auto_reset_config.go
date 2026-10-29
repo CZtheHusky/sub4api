@@ -28,17 +28,18 @@ type OpenAIAutoResetCreditConfig struct {
 	Threshold7d float64
 }
 
-// ResolveOpenAIAutoResetCreditConfig 只接受 OpenAI OAuth 母账号；历史账号未配置时
-// 始终保持关闭，防止升级后产生意外消费。
+// ResolveOpenAIAutoResetCreditConfig 只接受 OpenAI OAuth 母账号；未配置时默认开启，
+// 管理员显式关闭的账号保持关闭。
 func ResolveOpenAIAutoResetCreditConfig(account *Account) OpenAIAutoResetCreditConfig {
 	config := OpenAIAutoResetCreditConfig{
 		Threshold5h: openAIAutoResetCreditDefaultThreshold,
 		Threshold7d: openAIAutoResetCreditDefaultThreshold,
 	}
-	if !isOpenAIAutoResetCreditAccount(account) || account.Extra == nil {
+	if !isOpenAIAutoResetCreditAccount(account) {
 		return config
 	}
-	config.Enabled = resolveAccountExtraBool(account.Extra, OpenAIAutoResetCreditEnabledExtraKey)
+	_, configured := account.Extra[OpenAIAutoResetCreditEnabledExtraKey]
+	config.Enabled = !configured || resolveAccountExtraBool(account.Extra, OpenAIAutoResetCreditEnabledExtraKey)
 	if value, ok := resolveAccountExtraNumber(account.Extra, OpenAIAutoResetCredit5hThresholdExtraKey); ok && isValidOpenAIAutoResetThreshold(value) {
 		config.Threshold5h = value
 	}
@@ -71,7 +72,7 @@ func normalizeOpenAIAutoResetCreditExtra(platform, accountType string, isShadow 
 		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_AUTO_RESET_CREDIT_ACCOUNT_INVALID", "automatic reset credits are only supported for OpenAI OAuth parent accounts")
 	}
 
-	enabled := false
+	enabled := true
 	if hasEnabled {
 		value, ok := normalized[OpenAIAutoResetCreditEnabledExtraKey].(bool)
 		if !ok {

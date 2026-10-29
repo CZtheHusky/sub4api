@@ -15,11 +15,35 @@ import (
 )
 
 func TestNormalizeOpenAIAutoResetCreditExtra(t *testing.T) {
-	t.Run("历史账号默认关闭", func(t *testing.T) {
+	t.Run("未配置的母账号默认开启", func(t *testing.T) {
 		account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 		config := ResolveOpenAIAutoResetCreditConfig(account)
-		require.False(t, config.Enabled)
+		require.True(t, config.Enabled)
 		require.Equal(t, 1.0, config.Threshold5h)
+		require.Equal(t, 1.0, config.Threshold7d)
+	})
+
+	t.Run("显式关闭和不支持的账号不启用", func(t *testing.T) {
+		parentID := int64(1)
+		for _, account := range []*Account{
+			nil,
+			{Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+			{Platform: PlatformAnthropic, Type: AccountTypeOAuth},
+			{Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: &parentID},
+			{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: map[string]any{OpenAIAutoResetCreditEnabledExtraKey: false}},
+		} {
+			require.False(t, ResolveOpenAIAutoResetCreditConfig(account).Enabled)
+		}
+	})
+
+	t.Run("仅设置阈值时沿用默认开启并补齐另一窗口", func(t *testing.T) {
+		extra, err := normalizeOpenAIAutoResetCreditExtra(PlatformOpenAI, AccountTypeOAuth, false, map[string]any{
+			OpenAIAutoResetCredit5hThresholdExtraKey: 0.95,
+		})
+		require.NoError(t, err)
+		config := ResolveOpenAIAutoResetCreditConfig(&Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: extra})
+		require.True(t, config.Enabled)
+		require.Equal(t, 0.95, config.Threshold5h)
 		require.Equal(t, 1.0, config.Threshold7d)
 	})
 
@@ -498,11 +522,13 @@ func TestOpenAIQuotaAutoResetService_ExpiringCredit(t *testing.T) {
 		upstreamDelay time.Duration
 		pinLater      bool
 		disabled      bool
+		unsetEnabled  bool
 		failFirst     bool
 		wantReset     bool
 		wantWindow    string
 	}{
 		{name: "5h 有消耗即使用临期卡", expiresIn: 4 * time.Minute, used5h: 1, wantReset: true, wantWindow: "5h"},
+		{name: "未配置开关也默认使用临期卡", expiresIn: 4 * time.Minute, used5h: 1, unsetEnabled: true, wantReset: true, wantWindow: "5h"},
 		{name: "5h 全满但 7d 有消耗仍用卡", expiresIn: 4 * time.Minute, used7d: 1, wantReset: true, wantWindow: "7d"},
 		{name: "两个窗口都有消耗", expiresIn: 4 * time.Minute, used5h: 1, used7d: 2, wantReset: true, wantWindow: "5h+7d"},
 		{name: "缓存有消耗但上游两窗口均全满则保留卡", expiresIn: 4 * time.Minute, cachedUsed5h: 90},
@@ -538,6 +564,9 @@ func TestOpenAIQuotaAutoResetService_ExpiringCredit(t *testing.T) {
 			require.NoError(t, err)
 			var extra map[string]any
 			require.NoError(t, json.Unmarshal(rawExtra, &extra))
+			if test.unsetEnabled {
+				delete(extra, OpenAIAutoResetCreditEnabledExtraKey)
+			}
 			account := &Account{ID: 601, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Extra: extra}
 			repo := &autoResetTestAccountRepo{account: account}
 			upstreamExpiry := now.Add(test.expiresIn + test.upstreamDelay).Format(time.RFC3339)

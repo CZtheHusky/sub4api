@@ -443,7 +443,6 @@ describe('OpenAIQuotaResetCell 自动用卡运行态', () => {
   ] as const)('展示 %s 状态且不需要暴露卡标识', (status, labelKey) => {
     const account = makeAccount({
       extra: {
-        auto_reset_credit_enabled: true,
         codex_auto_reset_credit_state: {
           status,
           trigger_window: '5h',
@@ -461,10 +460,14 @@ describe('OpenAIQuotaResetCell 自动用卡运行态', () => {
     wrapper.unmount()
   })
 
-  it('开关关闭时不显示历史运行态', () => {
+  it.each([
+    { extra: { auto_reset_credit_enabled: false } },
+    { parent_account_id: 1, extra: {} },
+  ])('显式关闭或影子账号不显示历史运行态：%j', (overrides) => {
     const account = makeAccount({
+      ...overrides,
       extra: {
-        auto_reset_credit_enabled: false,
+        ...overrides.extra,
         codex_auto_reset_credit_state: { status: 'success', available_count: 1 },
       },
     })
