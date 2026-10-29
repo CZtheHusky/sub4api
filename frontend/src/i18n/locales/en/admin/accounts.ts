@@ -1162,7 +1162,7 @@ export default {
 	  },
       autoResetCredit: {
 	    title: 'Automatically use reset credits',
-	    hint: 'Uses the earliest-expiring available credit only when actual usage reaches a threshold. Off by default; the account remains paused if no credit is available or reset fails.',
+	    hint: 'Uses the earliest-expiring available credit when usage reaches a threshold, or when a credit expires within 5 minutes and either the 5h or 7d quota has been used. Off by default; quota pause rules still apply if no credit is available or reset fails.',
 	    threshold5h: '5h auto-reset threshold (%)',
 	    threshold7d: '7d auto-reset threshold (%)',
 	    thresholdHint: 'Each window is evaluated independently. Enter 0.1–100; both default to 100.',
