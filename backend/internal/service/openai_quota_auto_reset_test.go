@@ -7,8 +7,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	"github.com/MACOS-DO/sub4api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
 
@@ -186,8 +188,18 @@ func TestOpenAIQuotaAutoResetService_AssessesIndependentWindows(t *testing.T) {
 
 type autoResetTestAccountRepo struct {
 	AccountRepository
-	mu      sync.Mutex
-	account *Account
+	mu        sync.Mutex
+	account   *Account
+	scanTimes []time.Time
+}
+
+func (r *autoResetTestAccountRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string) ([]Account, *pagination.PaginationResult, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.scanTimes = append(r.scanTimes, time.Now())
+	account := *r.account
+	account.Extra = cloneOpenAIAutoResetExtra(r.account.Extra)
+	return []Account{account}, nil, nil
 }
 
 func (r *autoResetTestAccountRepo) GetByID(_ context.Context, id int64) (*Account, error) {
@@ -474,4 +486,203 @@ func TestOpenAIQuotaAutoResetService_QueryFailureBacksOffBeforeRetry(t *testing.
 	require.NoError(t, service.evaluateAccount(context.Background(), 501))
 	require.Equal(t, int32(2), quota.queryCalls.Load(), "重试间隔过后应恢复查询")
 	require.Equal(t, OpenAIAutoResetStatusNoCredit, repo.stateForTest().Status)
+}
+
+func TestOpenAIQuotaAutoResetService_ExpiringCredit(t *testing.T) {
+	tests := []struct {
+		name          string
+		expiresIn     time.Duration
+		used5h        float64
+		used7d        float64
+		cachedUsed5h  float64
+		upstreamDelay time.Duration
+		pinLater      bool
+		disabled      bool
+		failFirst     bool
+		wantReset     bool
+		wantWindow    string
+	}{
+		{name: "5h 有消耗即使用临期卡", expiresIn: 4 * time.Minute, used5h: 1, wantReset: true, wantWindow: "5h"},
+		{name: "5h 全满但 7d 有消耗仍用卡", expiresIn: 4 * time.Minute, used7d: 1, wantReset: true, wantWindow: "7d"},
+		{name: "两个窗口都有消耗", expiresIn: 4 * time.Minute, used5h: 1, used7d: 2, wantReset: true, wantWindow: "5h+7d"},
+		{name: "缓存有消耗但上游两窗口均全满则保留卡", expiresIn: 4 * time.Minute, cachedUsed5h: 90},
+		{name: "超过五分钟不提前消费", expiresIn: 6 * time.Minute, used5h: 1},
+		{name: "已经过期不消费", expiresIn: -time.Minute, used5h: 1},
+		{name: "关闭自动用卡不消费", expiresIn: 4 * time.Minute, used5h: 1, disabled: true},
+		{name: "上游确认到期时间推迟后不消费", expiresIn: 4 * time.Minute, used5h: 1, upstreamDelay: time.Hour},
+		{name: "未决兑换锁定长期卡时不得临期消费或换卡", expiresIn: 4 * time.Minute, used5h: 1, pinLater: true},
+		{name: "超时后按原卡和幂等键重试", expiresIn: 4 * time.Minute, used5h: 1, failFirst: true, wantReset: true, wantWindow: "5h"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			now := time.Now().UTC()
+			expiresAt := now.Add(test.expiresIn).Format(time.RFC3339)
+			cached := &OpenAIRateLimitResetCredits{
+				AvailableCount: 2,
+				Credits: []OpenAIRateLimitResetCreditDetail{
+					{ExpiresAt: now.Add(24 * time.Hour).Format(time.RFC3339)},
+					{ExpiresAt: expiresAt},
+				},
+			}
+			// JSON 往返模拟数据库 extra，额度头刚刷新且缓存用量为零也必须检查临期卡。
+			rawExtra, err := json.Marshal(map[string]any{
+				OpenAIAutoResetCreditEnabledExtraKey: !test.disabled,
+				OpenAIAutoResetCreditStateExtraKey: OpenAIAutoResetCreditState{
+					Status: OpenAIAutoResetStatusAvailable, AvailableCount: 2, CheckedAt: now.Format(time.RFC3339),
+				},
+				openaiQuotaResetCreditsKey: cached,
+				"codex_usage_updated_at":   now.Format(time.RFC3339),
+				"codex_5h_used_percent":    test.cachedUsed5h,
+				"codex_7d_used_percent":    0.0,
+			})
+			require.NoError(t, err)
+			var extra map[string]any
+			require.NoError(t, json.Unmarshal(rawExtra, &extra))
+			account := &Account{ID: 601, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Extra: extra}
+			repo := &autoResetTestAccountRepo{account: account}
+			upstreamExpiry := now.Add(test.expiresIn + test.upstreamDelay).Format(time.RFC3339)
+			quota := &autoResetTestQuota{failFirst: test.failFirst, usage: &OpenAIQuotaUsage{
+				FetchedAt: now.Unix(),
+				RateLimit: &OpenAIRateLimit{
+					PrimaryWindow:   &OpenAIRateLimitWindow{UsedPercent: test.used5h, LimitWindowSeconds: 5 * 3600, ResetAfterSeconds: 3600, ResetAt: now.Add(time.Hour).Unix()},
+					SecondaryWindow: &OpenAIRateLimitWindow{UsedPercent: test.used7d, LimitWindowSeconds: 7 * 24 * 3600, ResetAfterSeconds: 86400, ResetAt: now.Add(24 * time.Hour).Unix()},
+				},
+				RateLimitResetCredits: &OpenAIRateLimitResetCredits{
+					AvailableCount: 2,
+					Credits: []OpenAIRateLimitResetCreditDetail{
+						{ExpiresAt: now.Add(24 * time.Hour).Format(time.RFC3339)},
+						{ExpiresAt: upstreamExpiry},
+					},
+				},
+				autoResetCandidates: []openAIAutoResetCreditCandidate{
+					{ID: "later-credit", ExpiresAt: now.Add(24 * time.Hour).Format(time.RFC3339)},
+					{ID: "expiring-credit", ExpiresAt: upstreamExpiry},
+				},
+			}}
+			if test.pinLater {
+				state := repo.stateForTest()
+				state.AttemptCycleHash = shortOpenAIAutoResetHash(openAIAutoResetCycleSeed(quota.usage))
+				state.AttemptCreditHash = shortOpenAIAutoResetHash("later-credit")
+				repo.setExtraForTest(OpenAIAutoResetCreditStateExtraKey, state)
+			}
+			idempotencyConfig := DefaultIdempotencyConfig()
+			idempotencyConfig.ObserveOnly = false
+			idempotencyConfig.FailedRetryBackoff = 0
+			service := NewOpenAIQuotaAutoResetService(repo, quota, autoResetTestRecoverer{},
+				NewIdempotencyCoordinator(newInMemoryIdempotencyRepo(), idempotencyConfig), nil, nil, nil)
+
+			err = service.evaluateAccount(context.Background(), account.ID)
+			if test.failFirst {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.NoError(t, service.evaluateAccount(context.Background(), account.ID))
+			if !test.wantReset {
+				require.Zero(t, quota.resetCalls.Load())
+				if test.expiresIn > 0 && test.expiresIn <= 5*time.Minute && !test.disabled {
+					require.Positive(t, quota.queryCalls.Load(), "临期时必须查询实际用量，不能把缓存零用量视为额度全满")
+				}
+				return
+			}
+			wantCalls := int32(1)
+			if test.failFirst {
+				wantCalls = 2
+				require.Equal(t, quota.resetArgs[0], quota.resetArgs[1], "超时重试不能换卡或幂等键")
+			}
+			require.Equal(t, wantCalls, quota.resetCalls.Load(), "重复扫描不能重复消费同一张卡")
+			require.Equal(t, "expiring-credit", quota.resetArgs[0][0], "优先使用最早到期的卡")
+			require.Equal(t, OpenAIAutoResetStatusSuccess, repo.stateForTest().Status)
+			require.Equal(t, test.wantWindow, repo.stateForTest().TriggerWindow)
+		})
+	}
+}
+
+func TestOpenAIQuotaAutoResetService_NonExpiringCreditDoesNotRefreshStaleSnapshots(t *testing.T) {
+	service, repo, quota := newResetThresholdTestFixture(t, &OpenAIAutoResetCreditState{
+		Status:    OpenAIAutoResetStatusNoCredit,
+		CheckedAt: time.Now().Add(-openAIAutoResetSnapshotTTL - time.Minute).UTC().Format(time.RFC3339),
+	}, 0)
+	repo.setExtraForTest("codex_7d_used_percent", 0.0)
+	repo.setExtraForTest("codex_usage_updated_at", time.Now().Add(-time.Hour).UTC().Format(time.RFC3339))
+	repo.setExtraForTest(openaiQuotaResetCreditsKey, &OpenAIRateLimitResetCredits{
+		AvailableCount: 1,
+		Credits:        []OpenAIRateLimitResetCreditDetail{{ExpiresAt: time.Now().Add(6 * time.Minute).UTC().Format(time.RFC3339)}},
+	})
+	quota.usage.RateLimit.SecondaryWindow.UsedPercent = 0
+
+	require.NoError(t, service.evaluateAccount(context.Background(), 501))
+	require.Zero(t, quota.queryCalls.Load(), "临期前只检查已知到期时间，缓存陈旧不能触发上游轮询")
+}
+
+func TestOpenAIQuotaAutoResetService_ScannerJitterChecksExpiryTwice(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		now := time.Now()
+		service, repo, quota := newResetThresholdTestFixture(t, &OpenAIAutoResetCreditState{
+			Status: OpenAIAutoResetStatusAvailable, AvailableCount: 1,
+			CheckedAt: now.Add(-time.Hour).UTC().Format(time.RFC3339),
+		}, 1)
+		credits := &OpenAIRateLimitResetCredits{
+			AvailableCount: 1,
+			Credits:        []OpenAIRateLimitResetCreditDetail{{ExpiresAt: now.Add(8 * time.Minute).UTC().Format(time.RFC3339)}},
+		}
+		repo.setExtraForTest(openaiQuotaResetCreditsKey, credits)
+		repo.setExtraForTest("codex_7d_used_percent", 0.0)
+		repo.setExtraForTest("codex_usage_updated_at", now.Add(-time.Hour).UTC().Format(time.RFC3339))
+		quota.usage.RateLimit.SecondaryWindow.UsedPercent = 0
+		quota.usage.RateLimitResetCredits = credits
+		service.wg.Add(2)
+		go service.runWorker()
+		go service.runScanner()
+		defer service.Stop()
+
+		time.Sleep(3 * time.Minute)
+		synctest.Wait()
+		require.Zero(t, quota.queryCalls.Load(), "进入最后五分钟前不请求上游")
+		time.Sleep(5 * time.Minute)
+		synctest.Wait()
+		checks := quota.queryCalls.Load()
+		require.GreaterOrEqual(t, checks, int32(2), "五分钟内至少复查两次，额度全满时继续保留卡")
+		require.Zero(t, quota.resetCalls.Load())
+		time.Sleep(3 * time.Minute)
+		synctest.Wait()
+		require.Equal(t, checks, quota.queryCalls.Load(), "卡片过期后停止临期查询")
+
+		repo.mu.Lock()
+		scans := append([]time.Time(nil), repo.scanTimes...)
+		repo.mu.Unlock()
+		require.GreaterOrEqual(t, len(scans), 5)
+		require.Equal(t, 2*time.Second, scans[0].Sub(now), "保留启动时的首次检查")
+		intervals := make(map[time.Duration]struct{})
+		for i := 1; i < len(scans); i++ {
+			interval := scans[i].Sub(scans[i-1])
+			require.GreaterOrEqual(t, interval, 105*time.Second)
+			require.LessOrEqual(t, interval, 135*time.Second)
+			intervals[interval] = struct{}{}
+		}
+		require.Greater(t, len(intervals), 1, "每轮应重新随机间隔")
+	})
+}
+
+func TestOpenAIAutoResetCreditsExpiring_FiveMinuteBoundary(t *testing.T) {
+	now := time.Date(2026, 10, 29, 16, 0, 0, 0, time.UTC)
+	for _, test := range []struct {
+		name      string
+		expiresIn time.Duration
+		want      bool
+	}{
+		{name: "恰好五分钟", expiresIn: 5 * time.Minute, want: true},
+		{name: "五分钟以内", expiresIn: time.Second, want: true},
+		{name: "尚未进入五分钟", expiresIn: 5*time.Minute + time.Second},
+		{name: "恰好到期"},
+		{name: "已过期", expiresIn: -time.Second},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			credits := &OpenAIRateLimitResetCredits{
+				AvailableCount: 1,
+				Credits:        []OpenAIRateLimitResetCreditDetail{{ExpiresAt: now.Add(test.expiresIn).Format(time.RFC3339)}},
+			}
+			require.Equal(t, test.want, openAIAutoResetCreditsExpiring(credits, now))
+		})
+	}
 }
