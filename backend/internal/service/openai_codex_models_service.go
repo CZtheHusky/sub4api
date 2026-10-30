@@ -48,7 +48,7 @@ const (
 )
 
 // FilterCodexModelIDsForGroup removes dedicated media-generation models,
-// wildcard mapping keys, and Codex automatic modes from a client catalog.
+// wildcard mapping keys, and Codex automatic modes from a generated catalog.
 // Automatic modes are retained only when the group's enabled model allowlist
 // explicitly selects the exact slug; account model mappings describe routing
 // and are not feature opt-ins. Wildcard keys such as "foo-*" are routing
@@ -141,7 +141,7 @@ func (s *OpenAIGatewayService) BuildGroupConfiguredCodexModelsManifest(
 
 	body, err := buildCodexModelsManifestForAccounts(
 		PlatformOpenAI,
-		configuredModels,
+		FilterCodexModelIDsForGroup(configuredModels, group),
 		catalog,
 		group,
 		nil,
@@ -172,8 +172,8 @@ func (s *OpenAIGatewayService) BuildGroupConfiguredCodexModelsManifest(
 
 // MergeGroupConfiguredCodexModels adds account model aliases that are visible
 // to the authenticated OpenAI group without discarding metadata from upstream
-// Codex model entries. A group's custom models list also filters the picker,
-// matching the standard /v1/models display policy.
+// Codex model entries, including hidden internal review models. A group's
+// enabled allowlist still restricts every entry.
 func (s *OpenAIGatewayService) MergeGroupConfiguredCodexModels(
 	ctx context.Context,
 	group *Group,
@@ -1446,11 +1446,16 @@ func mergeConfiguredCodexModelsManifest(
 		if strings.HasPrefix(descriptor.Slug, codexAutoModelPrefix) {
 			_, explicitlyEnabled := selected[descriptor.Slug]
 			explicitlyEnabled = filterBySelection && explicitlyEnabled
-			if !explicitlyEnabled {
+			if !explicitlyEnabled && descriptor.Slug != openai.CodexUsageProbeModel {
 				changed = true
 				continue
 			}
-			visibleModel, visibilityChanged, err := codexModelWithVisibility(rawModel, "list")
+			// Hidden review metadata is still needed by Codex's internal reviewer.
+			visibility := "hide"
+			if explicitlyEnabled {
+				visibility = "list"
+			}
+			visibleModel, visibilityChanged, err := codexModelWithVisibility(rawModel, visibility)
 			if err != nil {
 				return nil, false, err
 			}
