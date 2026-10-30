@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	infraerrors "github.com/MACOS-DO/sub4api/internal/pkg/errors"
+	"github.com/MACOS-DO/sub4api/internal/pkg/openai"
 )
 
 // FetchOpenAIModelsList discovers a single account's raw public model catalog.
@@ -195,7 +196,7 @@ func projectAccountModelsBody(body []byte, account *Account, group *Group, codex
 			if isCodexDedicatedMediaModel(id) {
 				continue
 			}
-			if strings.HasPrefix(id, codexAutoModelPrefix) && len(FilterCodexModelIDsForGroup([]string{id}, group)) == 0 {
+			if strings.HasPrefix(id, codexAutoModelPrefix) && id != openai.CodexUsageProbeModel && len(FilterCodexModelIDsForGroup([]string{id}, group)) == 0 {
 				continue
 			}
 		}
