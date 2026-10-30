@@ -1427,13 +1427,13 @@ func TestBuildGroupConfiguredCodexModelsManifestFallsThroughWithoutConfiguration
 	require.Nil(t, manifest)
 }
 
-func TestMergeGroupConfiguredCodexModelsFiltersAutoReviewByDefault(t *testing.T) {
+func TestMergeGroupConfiguredCodexModelsKeepsAutoReviewHiddenByDefault(t *testing.T) {
 	t.Parallel()
 
 	const groupID int64 = 74
 	svc := &OpenAIGatewayService{accountRepo: codexModelsVisibilityAccountRepo{}}
 	manifest := &OpenAIModelsResponse{
-		Body: []byte(`{"models":[{"slug":"codex-auto-review","visibility":"list"},{"slug":"codex-auto-future","visibility":"list"},{"slug":"gpt-image-2","visibility":"list"},{"slug":"gpt-5.6","visibility":"list"}]}`),
+		Body: []byte(`{"models":[{"slug":"codex-auto-review","visibility":"list","model_messages":{"auto_review":{"enabled":true}},"supported_reasoning_levels":[{"effort":"low","description":"Review"}]},{"slug":"codex-auto-future","visibility":"list"},{"slug":"gpt-image-2","visibility":"list"},{"slug":"gpt-5.6","visibility":"list"}]}`),
 	}
 
 	require.NoError(t, svc.MergeGroupConfiguredCodexModels(
@@ -1443,13 +1443,17 @@ func TestMergeGroupConfiguredCodexModelsFiltersAutoReviewByDefault(t *testing.T)
 		"",
 	))
 	models := decodeCodexManifestModels(t, manifest.Body)
-	require.Len(t, models, 1)
-	require.Equal(t, "gpt-5.6", models[0]["slug"])
+	require.Len(t, models, 2)
+	require.Equal(t, "codex-auto-review", models[0]["slug"])
+	require.Equal(t, "hide", models[0]["visibility"], "内部审核必须能发现模型，但不能改变手动模型菜单")
+	require.Equal(t, map[string]any{"auto_review": map[string]any{"enabled": true}}, models[0]["model_messages"])
+	require.Equal(t, []string{"low"}, effortsFromManifestModel(t, models[0]))
+	require.Equal(t, "gpt-5.6", models[1]["slug"])
 	require.Equal(t, codexModelsManifestBodyETag(manifest.Body), manifest.ETag)
 }
 
-// Scenario: OpenAI 账号映射不启用 Auto Review。
-func TestMergeGroupConfiguredCodexModelsFiltersAccountMappedAutoReviewByDefault(t *testing.T) {
+// Scenario: 账号映射不能把上游隐藏的审核模型显示在菜单中。
+func TestMergeGroupConfiguredCodexModelsKeepsAccountMappedAutoReviewHidden(t *testing.T) {
 	t.Parallel()
 
 	const groupID int64 = 75
@@ -1477,7 +1481,9 @@ func TestMergeGroupConfiguredCodexModelsFiltersAccountMappedAutoReviewByDefault(
 		manifest,
 		"",
 	))
-	require.Equal(t, []string{"gpt-5.6"}, codexManifestModelSlugs(t, manifest.Body))
+	models := decodeCodexManifestModels(t, manifest.Body)
+	require.Equal(t, []string{"codex-auto-review", "gpt-5.6"}, codexManifestModelSlugs(t, manifest.Body))
+	require.Equal(t, "hide", models[0]["visibility"])
 }
 
 // Scenario: 启用的分组自定义列表允许 Auto Review。
@@ -1747,6 +1753,27 @@ func TestFetchCodexModelsManifestPassthrough(t *testing.T) {
 	if gotClientVersion != "0.137.0" {
 		t.Errorf("client_version query: got %q", gotClientVersion)
 	}
+}
+
+func TestFetchCodexModelsManifestOAuthAutoReviewDiscovery(t *testing.T) {
+	const manifestBody = `{"models":[{"slug":"gpt-6-astra","visibility":"list"},{"slug":"codex-auto-review","visibility":"hide","supported_in_api":true,"model_messages":{"auto_review":{"enabled":true}}}]}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "Bearer test-access-token", r.Header.Get("Authorization"))
+		w.Header().Set("ETag", `"upstream-review"`)
+		_, _ = w.Write([]byte(manifestBody))
+	}))
+	defer server.Close()
+	original := chatgptCodexModelsURL
+	chatgptCodexModelsURL = server.URL
+	t.Cleanup(func() { chatgptCodexModelsURL = original })
+
+	svc := &OpenAIGatewayService{accountRepo: codexModelsVisibilityAccountRepo{}}
+	manifest, err := svc.FetchCodexModelsManifest(context.Background(), newCodexModelsTestAccount(), "0.164.0", "")
+	require.NoError(t, err)
+	group := &Group{ID: 77, Platform: PlatformOpenAI, CodexModelsManifestConfig: GroupCodexModelsManifestConfig{Enabled: true, AccountIDs: []int64{1}}}
+	require.NoError(t, svc.MergeGroupConfiguredCodexModels(context.Background(), group, manifest, ""))
+	require.Equal(t, manifestBody, string(manifest.Body), "真实上游隐藏条目应完整保留，供内部审核发现")
+	require.Equal(t, `"upstream-review"`, manifest.ETag)
 }
 
 func TestFetchCodexModelsManifestAgentIdentityUsesAssertionWithoutOAuthToken(t *testing.T) {

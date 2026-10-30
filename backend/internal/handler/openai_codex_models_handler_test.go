@@ -186,9 +186,10 @@ func TestCodexModelsAppliesLocalFiltersBeforeClientETag(t *testing.T) {
 	if second.Code != http.StatusOK {
 		t.Fatalf("second status: got %d, want %d; body=%s", second.Code, http.StatusOK, second.Body.String())
 	}
-	if body := second.Body.String(); strings.Contains(body, "codex-auto-review") || !strings.Contains(body, "gpt-5.6") {
+	if body := second.Body.String(); !strings.Contains(body, "codex-auto-review") || !strings.Contains(body, "gpt-5.6") {
 		t.Fatalf("second body was not the filtered manifest: %s", body)
 	}
+	require.Contains(t, second.Body.String(), `"visibility":"hide"`)
 	if newETag := second.Header().Get("ETag"); newETag == "" || newETag == oldETag {
 		t.Fatalf("second ETag: got %q, want a new final-body ETag", newETag)
 	}
@@ -799,6 +800,54 @@ func TestCodexModelsPinnedAccountsMergeUnionWithoutScheduler(t *testing.T) {
 	require.Equal(t, []int64{2, 3}, upstream.accountIDs(), "固定账号模式不得调用调度器或非固定账号")
 }
 
+func TestCodexModelsPinnedAccountsDiscoverAutoReviewWithoutBypassingAllowlist(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		allowlist  service.GroupModelAllowlist
+		visibility string
+	}{
+		{name: "disabled saved selection", allowlist: service.GroupModelAllowlist{Models: []string{"codex-auto-review"}}, visibility: "hide"},
+		{name: "wildcard allows internal discovery", allowlist: service.GroupModelAllowlist{Enabled: true, Models: []string{"gpt-*", "codex-auto-*"}}, visibility: "hide"},
+		{name: "explicit picker selection", allowlist: service.GroupModelAllowlist{Enabled: true, Models: []string{"gpt-6-astra", "codex-auto-review"}}, visibility: "list"},
+		{name: "enabled allowlist denies reviewer", allowlist: service.GroupModelAllowlist{Enabled: true, Models: []string{"gpt-6-astra"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			account := newPinnedCodexAccount(1, service.StatusActive, true, false)
+			upstream := &codexModelsPinnedHTTPUpstream{bodies: map[int64]string{
+				1: `{"models":[{"slug":"gpt-6-astra","visibility":"list"},{"slug":"codex-auto-review","visibility":"hide","supported_reasoning_levels":[{"effort":"low","description":"Review"}],"model_messages":{"auto_review":{"enabled":true}},"future_review_metadata":{"preserve":true}}]}`,
+			}}
+			handler := newPinnedCodexTestHandler([]service.Account{account}, upstream, 3)
+			group := &service.Group{
+				ID: 77, Platform: service.PlatformOpenAI, ModelAllowlist: tc.allowlist,
+				CodexModelsManifestConfig: service.GroupCodexModelsManifestConfig{Enabled: true, AccountIDs: []int64{1}},
+			}
+
+			first := performPinnedCodexModelsRequest(t, handler, group, "")
+			require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+			if tc.visibility == "" {
+				require.Equal(t, []string{"gpt-6-astra"}, codexHandlerManifestSlugs(t, first))
+			} else {
+				require.Equal(t, []string{"gpt-6-astra", "codex-auto-review"}, codexHandlerManifestSlugs(t, first))
+				var manifest struct {
+					Models []map[string]any `json:"models"`
+				}
+				require.NoError(t, json.Unmarshal(first.Body.Bytes(), &manifest))
+				review := manifest.Models[1]
+				require.Equal(t, tc.visibility, review["visibility"])
+				require.Equal(t, map[string]any{"enabled": true}, review["model_messages"].(map[string]any)["auto_review"])
+				require.Equal(t, map[string]any{"preserve": true}, review["future_review_metadata"])
+				require.Equal(t, []any{map[string]any{"effort": "low", "description": "Review"}}, review["supported_reasoning_levels"])
+			}
+			etag := first.Header().Get("ETag")
+			require.NotEmpty(t, etag)
+			second := performPinnedCodexModelsRequest(t, handler, group, etag)
+			require.Equal(t, http.StatusNotModified, second.Code, second.Body.String())
+			require.Empty(t, second.Body.Bytes())
+			require.Equal(t, []int64{1}, upstream.accountIDs(), "目录重验不能触发额外上游请求")
+		})
+	}
+}
+
 func TestCodexModelsPinnedAccountsUseRateLimitedAccountAndSkipUnavailable(t *testing.T) {
 	accounts := []service.Account{
 		newPinnedCodexAccount(2, service.StatusActive, true, true),    // 限流中：仍被使用
@@ -951,7 +1000,7 @@ func TestCodexModelsPinnedAccountsStillApplyCustomModelsListFilter(t *testing.T)
 		newPinnedCodexAccount(3, service.StatusActive, true, false),
 	}
 	upstream := &codexModelsPinnedHTTPUpstream{bodies: map[int64]string{
-		2: `{"models":[{"slug":"model-a"}]}`,
+		2: `{"models":[{"slug":"model-a"},{"slug":"codex-auto-review","visibility":"hide"}]}`,
 		3: `{"models":[{"slug":"model-b"}]}`,
 	}}
 	handler := newPinnedCodexTestHandler(accounts, upstream, 3)
