@@ -813,6 +813,7 @@ func TestCodexModelsPinnedAccountsDiscoverAutoReviewWithoutBypassingAllowlist(t 
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			account := newPinnedCodexAccount(1, service.StatusActive, true, false)
+			account.Credentials["model_mapping"] = map[string]any{"gpt-6-astra": "gpt-6-astra", "codex-auto-review": "codex-auto-review"}
 			upstream := &codexModelsPinnedHTTPUpstream{bodies: map[int64]string{
 				1: `{"models":[{"slug":"gpt-6-astra","visibility":"list"},{"slug":"codex-auto-review","visibility":"hide","supported_reasoning_levels":[{"effort":"low","description":"Review"}],"model_messages":{"auto_review":{"enabled":true}},"future_review_metadata":{"preserve":true}}]}`,
 			}}
