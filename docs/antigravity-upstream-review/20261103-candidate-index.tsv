@@ -1,0 +1,334 @@
+sha	subject	candidate_source	after_manual_sync_in_path_set_B	old_review_reference	this_round_review
+31564b2e86ccb6f4de348a21eb9e47b366f326ba	fix(gemini): 刷新 Gemini 默认模型列表，移除已停用的 2.x 模型	path_set_B	true	batch-03 #245	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+de44e3a0bfd63db10fc733a71d6577f5070a6b8e	fix(gemini): 分组账号都声明模型映射时，/v1beta/models 列表与详情按声明的模型应答	path_set_B	true	batch-03 #244	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a207412375448f85e816b1b56139813d04d831d8	fix(gemini): 绑定显式缓存的请求在池模式上游网关账号上按配置同账号重试	path_set_B	true	batch-03 #247	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+34236674223877d265bb5dbc071277d04ded0d34	feat(openai): support GPT-6.1 Terra	path_set_B	true	batch-03 #207	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+14a5fe3050616e35b5f123614f57e0e6adcaf069	fix(antigravity): reject malformed non-streaming tool calls	path_set_B	true	batch-03 #239	采用：Antigravity 非流式 malformed 工具调用拒绝
+aa1a1b11c864a009ddd83e1f9010b0f92bd1da0b	fix(billing): gate per-image billing by endpoint and pricing mode	path_set_B	true	batch-03 #205	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+4197fa62021ca1fe7933fe3eb08ae119dc1fe91b	feat(gemini): 同账号重试次数改为可配置 gateway.max_same_account_retries_gemini	path_set_B	true	batch-03 #246	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d5dbb5c36be3e2b76e7f0197e6ef7f3f214df6fc	perf(gateway): 单 antigravity 账号分组判定改为按需求值	path_set_B	true	batch-03 #185	本次不引入：单账号性能收益未实测
+38b72d734e0aa92ce7547a5ea8618abb7290cf98	fix(ratelimit): 模型限流快照写入改为写时复制	path_set_B	true	batch-03 #187	本次不引入：当前调用者不在 Antigravity 路径
+47cb84b8b047ff883d3ab6214151c96ff8b93584	fix(gemini): 分组「允许当前分组生图」开关对 Gemini 系入口生效	path_set_B	true	batch-03 #182	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c7bfcd93aa206065238b67757d5d8fae81cf697b	fix(tools): normalize parameter constants and annotations	path_set_B	true	batch-03 #191	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+9c41b32695c4aa5d2673f228097762cba14e64f0	fix(gemini): prompt 被拦截只报缓存命中时 input_tokens 不再为负	path_set_B	true	batch-03 #176	采用：非负 Gemini 输入用量，保留缓存量
+2b1f129385f4475ffddf8a91b44feceef5101fb6	fix(gemini): 流式中途客户端断开时按已收集用量计费	path_set_B	true	batch-03 #175	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+64211de8defd7144c1e99f72770278adeae3c2a5	feat(gemini): 兼容入口转发思考档位并流式返回思考摘要	path_set_B	true	batch-02 #155	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+feab6d80dc09fa2d64894d20cdca64fb4e460931	fix(antigravity): preserve tool_result images, native Gemini functionCall/thoughtSignature, and composite /v1beta routing	path_set_B	true	batch-02 #146	部分采用：工具图片、原生签名、全 parts 聚合；复合组不引入
+2a8cb088af205586b514a27f6a63e9bcf7adb4e6	feat(apicompat): configure minimum output token floor	path_set_B	true	batch-02 #156	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+373d43533a0fa06e1993af1eedd61154db8ebfb0	feat(antigravity): support Gemini 4 Argon and accurate upstream model catalogs	path_set_B	true	batch-02 #145	本次不引入目录/价格扩展；保留本地显式映射行为
+14cd5871752dabfc38069e9a7d87f282da0c9eda	fix(gemini): 每个上游错误响应只检查一次错误策略	path_set_B	true	batch-02 #152	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+20c4bf5ae59e4cb94669165436bb57ee16c41cb3	fix(gemini): Vertex SA 已不存在时账号置为 error 并换号	path_set_B	true	batch-02 #151	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+89ad4c2caa0a2c9f5a393f9d1c9c7e3c73f7c3b3	fix(gemini): Vertex 共享容量不足的 429 不冷却账号，改为同号退避重试	path_set_B	true	batch-02 #150	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c4bdc484753acc95f9a775854af303146389286c	fix(haiku): 修正采样边界、默认模型配置与 lint	path_set_B	true	batch-02 #117	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+26f70c6a873bbeed126f1944068a7eb183c89f16	fix(gateway): wire Claude Haiku 5.5 into Responses bridge	path_set_B	true	batch-02 #116	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+cfbbfd6b3b41bbdeee748e25d8aa3de866b811c7	fix(antigravity): isolate image model rate limits	path_set_B	true	batch-02 #134	采用：Antigravity 图片模型限流隔离
+ba2a71733272b75e948c28a6fb41ffa506a40edc	fix(gemini): preserve images from tool results	path_set_B	true	batch-02 #135	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+daebb7a80c720763a01e5cef8799c030aed0b058	fix(gemini): 模型列表与模型详情接口支持 Agent Platform (Vertex) 账号	path_set_B	true	batch-02 #131	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+05d7946af84228589e5a6a8d8b6bc08d686ba778	fix(gemini): 显式缓存错误透传收窄到上游网关账号，延长沿用创建时计费口径	path_set_B	true	batch-02 #128	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2588675ce7c0fa13189379489cc4edabe48f6fcd	fix(gemini): 第三方上游 API Key 与 Vertex 不再套用 AI Studio 等级和模拟配额	path_set_B	true	batch-02 #124	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+81e6ec5346c645fa03d794495198e32e4b910598	feat(gemini): Vertex 账号支持 API Key 认证	path_set_B	true	batch-02 #123	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3abd64658297f5ec47ad09120a0a26d6081d42de	fix(ops): Gemini 原生路由的网关本地错误按错误类型归类	path_set_B	true	batch-02 #121	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d5a802f84a6ae3405bee2a6e0160675785abf237	feat(gemini): 支持显式上下文缓存（AI Studio / Vertex / 自建网关上游）	path_set_B	true	batch-02 #120	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3bfd40f5afd820ff7fae32f3f26c75fe3e0dd504	fix(gemini): 引用缓存不存在的 403 不再停用账号并换号	path_set_B	true	batch-02 #119	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+874871a25a1441399d1cc416ded79c564897671f	feat(platform): 接入 Cline 平台	path_set_B	true	batch-02 #086	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+412718edf590e8fe39220eb52a05e6fdab071a68	fix(apicompat): always include `signature` on Anthropic thinking blocks	path_set_B	true	batch-01 #021	部分采用：仅 Antigravity thinking；共享 apicompat 撤下以保留 Codex 行为
+775c1a3c1dcd23744b234623162149aa565b8eb0	fix(apicompat): preserve refusals when converting Responses to Chat	path_set_B	true	batch-01 #019	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+7a767d5ce874d155ab644d5965d50dff80f3b5df	fix(apicompat): pair legacy chat function calls with their results	path_set_B	true	batch-01 #018	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+9a8ab4f88e7318a830be7ad0c299862798bb8d70	fix(apicompat): keep chat developer messages as developer role	path_set_B	true	batch-01 #017	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f3d752693f26cc4565de196c1305ec467187b9e5	fix(apicompat): flatten named chat tool_choice for Responses	path_set_B	true	batch-01 #016	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+9688571a83775b87db85917398c628b7cdfe8276	feat(models): support GPT-6.1 Sol	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+8490a818678780e8301147c13696af94dea7dd07	feat: support Claude Sonnet 5.5	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+52c123e6f4a71effe970d7505b1dc66e03ecfce4	fix(billing): hold inflight reservation until billing lands; price estimate like billing; wire remaining endpoints	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+43f88c99aa3efea40eb76fb55b48ae88a9f5dc13	fix(billing): reserve in-flight balance to prevent concurrent overdraft	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d359196adcac5f051d137cc2a8e601c32f1d2f1f	fix(antigravity): sanitize upstream error body before returning to client	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+82d2552360bf7b7b267ecdc6320fef34b0e93ac7	fix(apicompat): mark converted role items as messages	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f4f8ff04db3ff7d27993869796aa14ae039b16af	fix(gateway): 客户端断开统一标记 499,不再被记成 502/200 上游错误	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+52c2f4cb105a178b88a2ae04d5d32c895fd17e36	fix(antigravity): trigger failover retry on empty stream caused by MALFORMED_FUNCTION_CALL	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ca2746f3bba246a6cbd7dac3482965cae3c054d8	fix(antigravity): forward chat PDF file parts as Gemini inlineData	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+97bdde3135dd47f1fbb5c3bff6849d25dcd646b9	fix(apicompat): keep tool arguments sent on content_block_start	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+090b2cc00091e0bd4858a28d04143bb693366a1b	fix(apicompat): recover streamed text when the final output message is empty	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+82b092ffc20f32b0d485fff57c65b88ab1dc5dcf	fix(apicompat): treat every GPT generation from 5 on as a reasoning model	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2fc91663d25ae31e2d0f06a979ab4c0cd0c15381	fix(apicompat): honor disabled thinking in OpenAI bridges	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c4c2e660704dbde070f445beac3808cc829880c1	feat(models): support GPT-6 Sol, Luna and Claude Opus 5.5	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d68a68fd0d95010a5149b59117b6ee04487686fb	chore(docs): 清理 PR 误入的文档和截图	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f867e3e2ece67781d23cff532c64fcd8bbc90c73	test(antigravity): check schema properties type assertion	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+7f1f85cb768545e2dfb65c11df0d1df7213faee6	fix(gemini): stop cooling Vertex 429s until PST midnight, honor RetryInfo	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+27f4398b50ff763330a9e91d3f02c83ff95e473c	fix(antigravity): 裸 Gemini 模型名在所有转发入口解析到思考变体	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e47255715d79d0905b654fd046001e200824a860	fix(billing): preserve final reasoning effort across forwarding paths	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d0ed0eacacfa5d6ed495960b6314e99797c9e4c5	fix(gemini): 传输层错误转 failover,不再同账号退避重试	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+fb58dfbd9375660b9bc9df9bd8eff988b75e418c	test(antigravity): cover the identity rewrite end-to-end through the transformer	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+dd292e3b003b41a4f0ad75d91826b01e9663976c	fix(antigravity): neutralize Claude Agent SDK identity in system prompts	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ef51690b5a71501a2ce76296d6979f4ea09f6779	fix(antigravity): preserve string const constraints in tool schemas	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a8a1a3a958a0df8544aaa90729b5e4c178aa4090	fix(apicompat): flatten root union tool schemas for Anthropic	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+0f4d8acaa8400ddfe9c88efbd791105d8677e071	fix(antigravity): Gemini 原生请求的裸模型名按 thinkingConfig 解析到 -low/-medium/-high 变体	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f79b8bf96c8703db4759f9306a7de58d367286e9	fix(antigravity): Gemini 原生流对 go-genai / python-genai 客户端不发 SSE 注释心跳	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+0952ce34105b496d953d59d0b7de33e7e36550fe	fix(apicompat): include streamed arguments in function_call_arguments.done	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+acc05620cb9ec4e5420c1660f766db7a7d7a1e78	fix(deepseek): keep parallel Responses tool outputs contiguous	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+be4a4990ffb960bf797465c01eb448e5a56cf017	fix(antigravity): strip Claude attribution metadata from system prompts	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+881ab1b0c6239a928fdccc3c87d2cd011aa337ec	fix(deepseek): lift Responses tool output images	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+da74bf13a4099061f71d6816f6e703fb72abf43d	fix(gemini): discover antigravity mappings in native model lists	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1e231ee2ae2da2b9d76267df48aa4eb3c1ed13c8	fix(antigravity): resolve golangci-lint errors in schema cleaner tests	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+8447bdd36821933bdf2620f5ff3016daab74f905	fix(antigravity): gemini 透传 SSE 事件之间不再多写一个空行	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+087987070b5a1413d698dbd9677986ba41a964e7	fix(responses): 为 grok-build 始终写出 sequence_number	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+52558381c69dba77e9ef5271d8fbc0d5252a8911	fix(apicompat): merge leading system messages and downgrade mid-conversation system from Responses bridge	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+69d49744cf644b1dc7c73bf57167047e4db1e089	fix(antigravity): address code review feedback on schema cleaner	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+5d781ee6b7dcda2dd22d86108ae70f52253a889b	fix(antigravity): handle prefixItems and ensure array schema has valid items fallback	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+df8eceba0c150436835f1b02b74b397df81205ac	fix(apicompat): chat 桥保留 Codex agent_message 任务正文	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+95a04c8dff6a30227001b48f8dca6bd2ba4a6f99	test(apicompat): additional_tools 走 chat 桥的回归用例	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1ed36679bd8f2be0ec69c9b2ea3ff7b4e4da49bf	fix(apicompat): recover Responses text from done and terminal events	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+44bc47a3e38269c178ac56f667fd152f621bda48	fix(gemini): 原生路径登记 2xx 响应里的带内错误信号	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1d4b9ead45c6fcfdf1f5c8d584946a0a73f82f14	test(antigravity): align buildTools expectations with mixed-tool drop	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6c2d2ed0439e08b182d480ad4d185dfeecaebbda	fix(antigravity): drop mixed web_search when client tools present	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+58e35a4f327e82fe4f4c9de9e53c0e53a7fd7bad	fix(antigravity): always set toolConfig for reasoning models without tools	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a6430bfe20ce5ebb7c8e625d49c5540c5c8b53f0	fix(antigravity): refresh default user agent version	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+cff3f89850738e3504e35b01c9b4028d62b65a01	feat(groups)!: enforce model allowlists across gateway endpoints	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6271c517da6ec76905667fb5f2bcd958d5acdfd9	fix(apicompat): preserve arguments from done events	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+28f673e4cde06ed68fc56c1718b6ac6776bef311	fix(gemini): honor custom native models list	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+51631d032474fe8001d0711b067ba9ac8e65a78f	fix(apicompat): preserve discovered tools in chat fallback	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+8ed57b000ce68c407473d4d0fdc18fe9ff63c70b	feat(antigravity): support Gemini 3.7 Flash models	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+27bcec76454f81cbb69aa92b6e1c30c424984888	feat(antigravity): support Gemini 3.8 Flash models	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+de27905e88aa291acd2a292e2b439bce3de0f118	feat(usage): 用量记录落库上游请求标识并支持按账户配置响应头名	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e9e3c46cb76f564554357507102caf44cc79857d	fix(ops): snapshot proxy on upstream errors	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+34b8bf1a6e6ccec4c1358a87a060730b82dd6cd4	feat: support Claude Fable 5.1	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e2cfaa46e79241f34e52bf4781f7710cd511c5d2	fix(pricing): 目录 cache 侧字段契约哨兵与 Gemini pro 缓存写入价修正	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+530fb20f25ddf9ac7212e2e0143afacf87d5e612	refactor(billing): 长上下文阶梯计价改为价格目录数据驱动	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+8f5451587ebbb986169f4d4d1158efde9531246c	fix(apicompat): Anthropic→Responses 流式转换在 thinking 块前关闭 message item 并推进 content_index	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ea4291a92ca791bfe48c14b116d0487bb1f6e0c8	fix(anthropic): scope Fable scheduling threshold to Fable models	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+5d9c7abed59a5a53e36cd6cd62257807a3099ab0	fix(openai): scope Spark quota 429 to model	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+50ba146298538b4b683ef38f88548985d6871f47	fix(openai): preserve multimodal client tool outputs	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1a9898a6a4928b7686cb90045d20cc8ad81dff64	fix(antigravity): clamp compatible token limits	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+71aa6e357448736105f24f4032836bb6e570ed65	fix(antigravity): preserve explicit Sonnet 4.5 routing	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+99ec347eaff944d255032565717053ad02d5f5f3	fix(antigravity): migrate legacy Sonnet tests to 4.6	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+847c0c45263b8823b32c0f8c34387e1f7a6c1f3b	feat(gateway): configure model list read limit	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+695ebede70e0bed4c8fd4c87b5a426448a08ea4c	fix(billing): normalize CN Anthropic usage tokens	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1591477a3e401eb19281099dca9599db4a9cbc27	test(apicompat): adapt ChatCompletionsResponseToResponses call to upstream functionTools signature	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f06bf181d205682ad341ca42b1046193068c997a	feat(openai): support Fast mode service_tier across responses/chat/WS paths	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6466978d2f8f99998da0fc709a1e90a9650d1397	计费：统一 token 计费路径选择并提供上下文阶梯单价表查询	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+19da0f240ede6b735d9cd82890255b022050d736	fix(gemini): sanitize unsupported tool schema fields	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+4eadee1074b2f734374c8cee77273035d91b4b48	[verified] test(openai): update responses bridge signature	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+31d5b67baa4f21f2203a40b66772ef868e0f4fed	fix(openai): restore namespaced custom tool aliases	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+7a09a2eaf7386b299bfa78dfb21df2063f80db9a	fix(responses): remove orphan deferred tool flags	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e0e5e45cd2992aec162a3c324465ecf0cc3ecd1c	fix(openai): keep restored tool-call item IDs typed	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+9ede0f71658a32ece3bf649a602aa973d4f662b6	fix(grok): promote tool-search discoveries into callable tools	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+5b2089c5a35fd4c1f83b53fd12e83efab45a7a9a	fix(grok): lower Codex tool-search discovery outputs	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+b1737cc841f242b8e435333bb8d2d8e1041962ac	fix(antigravity): preserve mixed built-in chat tools	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+fbc9ee626d7298ddc1ba96c95349625f54737543	fix(apicompat): narrow malformed tool-call handling	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e2d9ce0cadadb68c35b08ca434258a4d5a9de0c9	fix(apicompat): reject malformed tool-call arguments	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+fefd0d5145232ff43c105f76d7f719c414ff3059	test(apicompat): avoid unchecked tool history assertions	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e4896c41d2de453684b0524fa7efd778263934d6	test(apicompat): satisfy client tool type assertions	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+b94e484e23698621f8fd3b339eb9df8679009d64	fix(openai): preserve client tools across WS bridge turns	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c253bd2c72dcce1aee21a4bc671ad23eb1bf5a34	fix(openai): restore client tools in terminal events	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1ba92449c7372493b2c94d42e290c0959f4cf760	fix(gemini): wire includeServerSideToolInvocations into the typed transform path	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ab0fcd1a0e6fa8f9974ba21c6c3478bebdd07be4	fix(gemini): Skipped 错误策略对齐 OpenAI，上游 4xx 不再硬改 500	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+401dd43b4b27883ae60d27c8270942a5fdbf2d07	fix(apicompat): 链式工具调用回放本轮 reasoning_content	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+612436a5a7cbb7ab9d4ce4174fcdff948fab31fb	fix(openai-compat): Responses→Chat 桥接按 reasoning item id 缓存回注 reasoning_content	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3c3bb2fa1949c7e5d0dd4e9b4cb07cab61595cd3	fix(gemini): support includeServerSideToolInvocations in GeminiToolConfig	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+cb5e03a72027e26d18abbfa0be4dce0f77864693	fix(antigravity): preserve mixed Gemini tool config	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+bafd2e293f797676e4d974093e6f6670e4d44764	fix(apicompat): omit empty tool name on streamed arguments deltas	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+21c07e83517a49bbfa5498afd604aa6b3a8cb43c	fix(antigravity): use official daily endpoint	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3c5553e253acfd01a147e0cca48cbf0cf36de38a	fix(responses): 网关合成的 Responses 对象补齐 created_at，修复严格客户端反序列化失败	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+901a77cfb1097cc9808ee2f6a041b044d3c278dd	fix(apicompat): Anthropic→Chat 桥回传工具调用的 thinking，修复 DeepSeek 多轮 400	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e7a3c1202eafca989857dd18f9cfaf0c4de9be67	fix(antigravity): route paid accounts to daily endpoint	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c4d883b8da728d19ca065db2398e1a27db5f9d5f	feat: Chat 与 Responses 往返保留 x_search，并补 sources 抽取	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c8d9af6ce1e12527d7aa969be3d42d2450f536a2	fix(gemini): normalize exclusive minimum tool schemas	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+4d4a0be1ad2a994bcf8ca175444a9eb2facb28b4	fix(apicompat): chat/completions file part 不再被静默丢弃，转换为 Responses input_file	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6e34fb09c9a3236fc3c48b8ff11e877f9c211e77	perf(usage): optimize upstream response model observation	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+b6eb6c1efab720fc1c791b07ca3384539c843154	fix(gemini): 原生生图按上游实际回吐的图片张数计费	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+cbc2a3dd46ded3dce0c25e8be6fd58d2aa209e6e	修复池模式 Gemini 账号被 429 打上账号级限流	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+64090de6645f738e1a6dbdcf84cc08495304dd0a	fix(apicompat): Responses→Anthropic 转换不再发出上游会拒收的 content block	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+db0bff82c7f954607f4b66421a79200e150ac836	feat(usage): audit upstream response models	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+02fbcbe3ad1d3860d43d84438e2f256bf471f286	fix(ratelimit): 守卫按端点来源门控，并与冷却键对齐模型口径	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+dbb42881c0c6dd0596de2f9367a9c7f45e3b50eb	fix(openai): default OAuth identity to codex-tui	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ce149831331ea6ae41f1472c3c7322fb8fd70229	fix(antigravity): support Gemini 3.6 Flash models	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+8aa425d22f943d0aa289794c98f0d233aadf3ec9	fix(apicompat): accept chat reasoning alias	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+dec47e8fae60a1a5677f13309c755a1e6d4ac27f	fix(profit-control): stop leaking profit policy, close veto livelock, restore passthrough turn pricing	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+fad2f215e88b974cd9073f2278b852bcbe2fdd8f	fix(profit-control): decouple gate from image intent, propagate gate via selection, restore eager sticky fallback	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+20ad5ec506d1e0e68d36a714b423784ccb3afebc	feat(scheduler): per-group profit control for token account admission	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2bf9c6d56be6130fe863e03c9defd7eaa3ab83b7	修复工具输出图片桥接	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+017f6bbd5edffea0639ef3c84c0391161983f1f3	fix(gateway): 收紧上游 URL 路径片段校验	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+248236ce6d95805bab61c627d694086cb39bd1cc	fix(gateway): 修复模拟响应使用 Bedrock msg_bdrk_ 格式，改为正宗 Anthropic msg_01 格式	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+7dde9370e49dab46d822221017cfd9b5d9e7dac0	Codex++ Responses<->Anthropic compatibility fixes	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3e081061165a9a51378f41aee43295a50c6060a6	fix(gemini): preserve Hermes web search functions	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+71d7f86883db55411dc3df9c8245132d4b172b7e	fix(antigravity):  1. harden OpenAI compatibility forwarding  2. reject usage-only non-stream responses	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+fd7e2039d36c7fd145554b925855d480a57ca8f6	fix(gemini): 完善gemini号池模式时retryable失效问题	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+4dc0aedbfeaecceb716012f36cbe423cb9ac1dee	fix(gemini): preserve image output in chat completions	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1c0cb24c7eb7ee39e614f254a8c72e62ead70287	feat(usage): persist client session identifiers	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3a683fff55736253836619b55b87c36b2e59cc52	Fix composite route alias attribution	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a008b63c1644d66f2a9eff27598a1d8bf9370c76	Add composite group route registry	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ebc1028771718c2c9c8685407bcaf3f12aac651b	Add composite group routing	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f8445a241b34bc114ee81eca3fc7d788496ff038	fix(grok): round-trip Codex client tools on Responses	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3c41984733b483110465e63e9fcec2b56c83d632	style(apicompat): gofmt types.go after merge	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ef88cf3f89c38d1d411f3958bce41cedaa756c5c	fix(grok): improve Claude Messages prompt-cache round-trip	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ba2b0044e360a9f625ad275242ab59de76e2378a	fix(apicompat): emit null stop_reason on Anthropic message_start	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ef2a22be70d0b42ea10556d5bf75c6ee9ba1d7b3	fix(routing): isolate temporary cooldowns by model	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+26b5e8745782abe1fa41a2ebfc0b95e7e7d7e2b3	fix(apicompat): emit content_part events and full output in Responses stream	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d11bdb13f52b0fa1d356482b4f8b14262420ec30	feat(security-audit): add OpenAI-compatible prompt auditing	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+9b4a7d5d47af2d960364b8830e02d931cf4732a2	fix(apicompat): sanitize complete Read tool argument streams	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d6d9f6ea4fc892e9c39796d41334a3ca745e5b97	fix(apicompat): preserve incomplete stream finalization	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c3a425837cb5f0d8131c8cd779b0eefebfd8a4e5	fix(apicompat): scope additional tools parsing	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+7b51271a849028c739f3fc918dd8e2ed866b6b75	fix(apicompat): default stop_reason for empty-choices responses	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+430fd8f20a1874f3ffe46edc864622d413f30b15	fix(apicompat): align direct bridge edge semantics with double conversion	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a0593b0bf84d2c778af05abeb0f34945452ec6c4	fix(gateway): 客户端断开后 failover 静默终止，不再误报 502 账号耗尽	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+22e97898bbdba9226f9a4ed69f229dac11cf9976	fix: gofmt on parallel tool regression test	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1eb79df0d36ac673c6f79c589d097131ae068a30	fix: golangci-lint issues (unused helpers, empty branch, errcheck, gofmt)	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+07732a5a35e10270a55ef9fab5db864b70b5a664	test: add regression tests for parallel tool_use ghost delta (#4193)	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3504b8cc88f0ba50ebfbee8175131246b2db1ab3	perf: direct Anthropic↔ChatCompletions bridge for force-chat accounts	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+4f3b5110e27d388668869565e3f079682925afe9	fix: parallel tool_use ghost content_block_delta (index error)	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+fa1641f05f1607276b867e20194e12ad5499f4ef	fix: keep namespace verbatim on WSv2 forwards and check test type assertions	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+966afd1b4b1c0bffea4988f6823690709816e473	fix: preserve instrumented client contracts	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+54d228dda5d2616dbd4b590d8af50c1f81ec5b11	feat(admin): add opt-in server timing metrics	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+317de9c04b610eb853080991c2bd8f4574db8d2f	fix: support namespace tools in native responses	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c7c933776db3847f60fa65945f389d82071ff5d9	fix: 池模式同账号重试次数配置对 Anthropic/Gemini/通用转发路径生效	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+b6427d4ec067ff06fbb4b46e543ebd7e8ab2dbd1	fix(apicompat): 流式 Anthropic max_tokens 映射为 incomplete + content_filter 映射为 finish_reason	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a5d40c9845b06519c62c5d1518beac0fa3f58353	fix(apicompat): Read 工具参数实时流式发送，不再依赖 .done 事件	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ff5c21618932328f33b12b83eafc62aff25f1464	fix(apicompat): bridge Codex additional tools	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+5015b7a1c174583ce4b31b0deee85f576850146a	修复 tool_search 参数对象反序列化	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+90e9d03dec4dafc4e9bb354c7c48c1b4cc02c4ef	fix(apicompat): 强制选择 tool_search 的 tool_choice 降级为指向代理的 function 选择	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e2b68d1f905005f394117643f4e1fed512d1ad3e	fix(apicompat): tool_choice 仅转发实际存在于转换结果中的工具	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a2cdaa6419e0ab2cb20b38ed64981c6ffd57046a	fix(apicompat): 内置 tool_search 与同名工具撞名时显式拒绝请求	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+83f169e4fa815f7083de23e301d1a1560dc71ca8	fix(apicompat): 补齐 Responses→Anthropic 流式路径的 cache_creation_input_tokens	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+0d28f7f90d80bfdbf9d44e3efe2ddbfc5a58f7e0	fix(apicompat): Responses↔Anthropic 转换补齐 cache_creation_input_tokens	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f1082bb78f788e716c810103101b10b854d2f77d	fix(apicompat): namespace 摊平名撞名时显式拒绝请求	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+79423383287e945a1d953a6f280bf35ea6b7f422	fix(apicompat): 回程还原 namespace 子工具调用，修复 Codex MCP 工具 unsupported call	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+de28eba3c8cdc0c9c235e68b3b9540252d4cb955	fix(openai): harden GPT-5.6 billing and usage	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+4a2b10c94e91c275a43b61ee68b6fe89855d1953	feat(openai): support GPT-5.6 cache write billing	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ad8afc8a2e984118f25aa8aa269de536c760ca57	Add parallel_tool_calls compatibility mapping	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1785509873a58558732b831455595c00858a8b02	fix(apicompat): ResponsesToAnthropicRequest 补全 instructions 字段并映射 developer role	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2a4c28e8f5c6ffe4476e817e40cc437fcb9f4487	refactor(service): 纯移动拆分 antigravity_gateway_service.go（4664→639行）	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+27e29f05621488b9402a373bbb434bda499645e7	feat(apicompat): 添加 tool_search 支持，增强工具调用处理逻辑	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+75fb3c41c272163e02970d23df6c793f1519acf1	fix(apicompat): responses→chat 桥支持 custom 工具，修复 Codex exec 丢失	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e2326a7998636048dd6b5a77e582d4d71b3c1b0c	Format response format types	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+5fcbe7e3070875a92d05299eafe30f67e897ad7f	Add response_format compatibility mapping	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+cbfeab964ece18ed3b8e9610554f6c33237f17fb	fix(antigravity): default gateway forward base URL to the production endpoint	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+b3f796972e72536698c86ff87dd7d7155105e199	feat(anthropic): treat 7d_oi (Fable) window 429 as model-level rate limit	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+45be32b2549ce6bd40db3a27d9497b7981fc8fee	fix: remove space lines	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f5b2961270ce2b74c1944fba4f5ddf615f1129cf	fix: Handle invalid arguments correctly for Gemini reasoning models	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+fcd3bc1272b3e283c172f153db4d75911cd93357	fix: return 404 model_not_found instead of 503 when no account supports the model	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+40c8252734b6282cc41cf846cf9cdac9cbd305b7	fix(apicompat): 规范化 custom 工具 schema	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+29122e30514f9af95ed8b7c9f8b6aa5984b0b55f	fix(apicompat): avoid doubling tool_call arguments from single-chunk upstreams	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+650c50e34bc8754471be629c0689ba69b6e8d682	fix(antigravity): add project fallback for standard tier	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+5c5283979bc00fa02022cde92fe9f2da7a5f72a3	doc(thinking-protocol): clarify mappedModel vs originalModel semantics per call path	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6baf00d7843b01547da8a865dabc20bb72deebae	fix(gateway): protocol-aware thinking-block filtering for Anthropic-compatible upstreams	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6c2db4f461895e6f69edf4a4ed6e670a536b14ed	fix(gemini): clean unsupported tool schema fields	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+b0579c489179c812e8cc9ab9ff964fe039ab2dff	fix: move user wait queue accounting off hot path	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+edfd5e3736128b05f65108a5c2c83271b9a1f891	fix(apicompat): default tool strict to false	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+65559ac58993c5eb42eb14d9f889ec76f2f44c8e	fix(antigravity): merge system role messages	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d662c97302586edfd711a4a2b3a19fe2a95aa1e1	feat: claude-fable-5	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+20f3f2049b3ed76c413cde39e2a6ef96f766b621	fix(gateway): complete MarkResponseCommitted coverage for all platforms	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6c8863169087ff047fc2d8e13eb71e49e1a6ee1a	fix(gateway): prevent double-write on error passthrough responses	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+7f6fdcd639a861863cc6fda16563d61e297a5236	fix(apicompat): remove duplicated stream lifecycle test declarations	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+5e6effd79c74a8422bbf4e6147455cb850ca3e09	feat: 模型感知 Codex prompt / client_metadata / anthropic SSE 补全	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+baf078fdb7155eac6449e1a9219e880125bf84f7	feat: 提升 Codex 行为模拟保真度（仅加法式改进）	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+36721d35a8ddc78b76c2625dfbbd0a8eea21d086	feat(openai): cool down image rate limits by capability	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+9b99f6c1f33b3b3576bddfb929830c353ee77ccb	fix(apicompat): surface DeepSeek reasoning-only replies	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+55655b865492387a0001bd5261946c626de76f62	fix(apicompat): surface reasoning-only chat streams	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+60867022b64ecb81a31670b0ff38eecf5ac54edf	fix(apicompat): repair tool_use/tool_result pairing on the Responses→Anthropic path	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+003b2786dacfd9c1c5342c499ae57590979fef8d	test(apicompat): check type assertions in responses stream wire tests	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a01686c637c81c29d19d7139f154c7ca9d4a1add	fix antigravity gemini rate limit and account scheduling	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f10bca81559b18fa003c3b1bcc4fedf148ddbd7f	refactor(apicompat): redesign the Codex Responses ↔ Chat Completions bridge	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+34de99ee0e3ae69c03774ae5e354c2e6494ca67f	refactor(gateway): cap upstream error body reads	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2caee9d884224c43e5c2af1c992ccde99b51d2c7	refactor(gateway): snapshot usage worker inputs	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d8cbf9ab5cb9c5ec4d3511e63d642384a6c60e62	refactor(gateway): introduce request body refs	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+0a521f09fbc481ccdd2a0d6bccfaa8f80df220fc	fix(gemini): close tool_use block before text in messages streaming	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+514ac5c6a12b89268af0159fc23a03d4aa6f0aed	feat: 适配 claude-opus-4-8	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2bd3125d0fe23515fd42ee3c6651bbe38e47593c	Preserve usage request context	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+20f5340784484d8be82c2139bb40ff34f1a7b715	fix(apicompat): Responses→Chat 转换补齐 completion_tokens_details 透传	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ddf91e9a7f7f7c72160d5097ffe2211ee6c20930	fix(gateway): 按最终 anthropic-beta header 对 body.context_management 做能力维度 sanitize	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+89dffdd2e1915bb84f578ac3bdd97ad91ae349f3	fix(apicompat): emit OpenAI-semantic input_tokens when converting Anthropic to Responses	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1e6d0b602adf4a210768ff4821f6bcf95ddc4951	fix(antigravity): capture message_start input_tokens in streaming passthrough	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f7ac5e5931aaa4b3f7ec5c683dda12c01efb2164	fix(openai): preserve chat responses usage billing	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a31b507484a38e4a013187e0e502418aec9f943d	fix(scheduler): 模型404仅冷却账号模型组合	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+47fe90eab443b6cc165cbd25a15070cdf6184b37	fix(antigravity): mark whitelist denials business-limited	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6b39b344d8c9a5b9202dc99a15b57af5eee20f26	feat(quota): 用户 × 平台 USD 配额	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c4d7edba08e5e814a7df85f6d8b395f83ea2f706	fix(apicompat): map developer role to system	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+cae93ae137da809a49fc7adac5d7ac8162cdafdd	fix(openai): /v1/responses respect force chat completions	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+276b5c775578d052692ad6ab67a2eee67cae6910	fix(apicompat): strip temperature/top_p for reasoning models in Responses conversion	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2eb622f2f6b27c2bffbd51a52ce7ac6b8c541e73	Remove ops retry replay storage	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+fe3283a1d54443b3a5bf92979382544c59d63bb2	fix: satisfy errcheck for reasoning content conversion	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+b9ecf252076563b8326ecd7b347d3f724a4940c8	fix: harden Antigravity model list requests	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6acb46c113aaed66880daba9193cf3bf892d7ac8	fix: 标记通用网关本地调度容量错误	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e9a25e7b92774712e009c2c54751d436adfc8907	fix(apicompat): preserve empty streaming thinking blocks	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1d47fd63000721e1e51b2d8681c79f361dc0afc1	This preserves DeepSeek reasoning_content across chat compatibility paths.	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+df82a3bc694a1b2c9511fb8066f9bc9fcbb23b1c	fix(openai): avoid null content when converting chat-completions to responses	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+0393bd7c82da1ca385af0744e9e19c1490c93bc0	Fix OpenAI compat usage parsing	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+87fac30459a66c803c294f1368b6a94d1474f437	fix: use tier cooldown for google one gemini 429	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+4840194b181784e2cecac7bcc8b2addedc747a14	Fix lint issues in image billing change	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+bb4c1abe285661aaaea2bf4241bc2c3c03912439	Fix image billing size normalization	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a07a0dac63a3e14b902ef7e2862b73e346ac88e7	feat: add configurable Antigravity user agent version	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+fff4a300c6ab0c0cc6fd394925f2811a0e17c882	feat(risk-control): add content moderation audit	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+0584305e5a8cc894e1787babf6154c07e34d415e	feat: improve OpenAI messages compatibility for Claude Code	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+72d5ee4cd1d57d2648dcc3e23218834505cbc402	fix: drain OpenAI compat streams for usage	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+93d91e20b9da4dd1986085ee62fb716213df0c5b	fix(vertex): audit fixes for Vertex Service Account feature (#1977)	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+04b2866f65f31c044a991e9f2c1b299927a2ac1b	fix: use Responses-compatible function tool_choice format	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3022090365efdeb77e653ed509f2a1af2edd4846	fix(anthropic): drop empty Read.pages in responses-to-anthropic tool input	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6d11f9ed77837968ba35188ebdc980ef60740e50	Add Vertex service account support	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+b17704d6effc717e5644ad09f61abe9aa2296775	fix(anthropic): 修正缓存 token 的 Anthropic 用量语义	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+5f630fbb19d6ebe245ad858f9cb6ab7e0184ae48	fix(apicompat): recognize web_search_20250305 / google_search in Responses to Anthropic tool conversion	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+66d64545351232023081f62a055271794fa1bf12	feat(claude): add ttl to cache_control with default 5m	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+b5467d610a0c232513e150f9a67356851ffbb3b7	fix(gateway): apply full Claude Code mimicry on /chat/completions and /responses	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+dc5d42addc6e59c89badd14557fe9cc406681f2c	feat(rpm): RPM 限流模块优化	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a789c8c4c70c72aa02a81736fc8ab8d9b8571f14	feat: 支持opus-4.7	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+10699eeb34e0e9b602a50d43a1be434d4751d5af	refactor: extract ReadUpstreamResponseBody to deduplicate upstream response read + too-large error handling	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6ac8ccde46dd60d09b6df425d9584053ba79b16e	fix: merge 30 general improvements from release branch	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e8ee400a3f8720345f025f8ba8e6164d0950592c	fix: resolve remaining lint errors for upstream CI	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6a08efeef9d013d4e5b3551b8c800adca267db63	fix: resolve upstream CI failures (lint, test, gofmt)	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+160903fce7841b99d761b30372f793bcbf448c5f	fix: address review findings for channel restriction refactoring	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2dce4306b4409e355f6ff265fa30ae7a2d3a6221	refactor: move channel model restriction from handler to scheduling phase	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+4de4823a65bccf199d1507af5dfd4a14655e8236	feat(openai): 支持messages模型映射与instructions模板注入	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+265687b56d876bd8b672c7b3adf70f9676a19719	fix: 优化调度快照缓存以避免 Redis 大 MGET	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+b2e379cf7ab6a7b57b86f3f5a8f7c9d875821c97	fix: 非流式路径在上游终态事件output为空时从delta事件重建响应内容	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+66779f1c5f88b6b5648e093ba7e91cf108a1d52d	同步ag版本号	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2c856b67caf23808a9cc3f59ecd7a2a84916fd18	Update oauth.go	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1b5ae71d1f4158f25004d6e2ceffc55b30730a8f	fix: resolve golangci-lint issues — remove unused constants and functions, fix gofmt	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d4ff835bf103aaa2fd99b1c2833bc60cd34d16fd	revert: remove antigravity credits precheck logic (not part of channel feature)	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e59fa8637a4c5df1aea367388da9f4913b88d07d	fix: resolve cherry-pick compilation and test issues	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1fca2bfab1f09b4e8668e899bb65caf2a6b54732	fix: address review findings for channel restriction refactoring	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ce41afb7565fcc307ab0866918a65e3e6a0840fb	refactor: move channel model restriction from handler to scheduling phase	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+35a9290528a38e67498b3d980be6c6ebd15b879d	fix: add cost nil guard to Anthropic/Antigravity RecordUsage paths	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3851628a43936134ada6fe84029b84a20fe73ce7	fix: resolve golangci-lint issues	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d72ac9269420346c73692e543ab2f7999ad0ffad	feat: image output token billing, channel-mapped billing source, credits balance precheck	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2555951be43d6fb1279585047bfa71b2f9984d42	feat(channel): 渠道管理全链路集成 — 模型映射、定价、限制、用量统计	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+eb385457b2e878a63457d0739e54bb8cfecc70d3	fix(channel): 全平台渠道映射覆盖 + 公共函数抽取 + 死代码清理	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+649afef5127ed4b6d0fe9c44dd3eb277249f6b6f	fix(handler): fallback known gemini models on v1beta 404	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+936fce68d0b814909016ac8fef84e8c35a36a9ca	fix(apicompat): skip empty base64 image URLs	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d978ac97f112321a446e41cb063cd7afd808f51d	test(antigravity): cover mixed web search transforms	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+dd5978f2224ce6646f4cdb5e3693f7059f26ab90	fix(gemini): normalize ai studio google search tools	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+0ebe0ce58551be2d30b22f3f86b9a20cb0b9737d	fix(gemini): preserve google search in Claude compat tools	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c8cfad7c00fb598d395eb4490cbc89eb6a66b314	fix(antigravity): preserve google search with function tools	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+3ee6f085db25ae699f1c81e0ca0906eeea6d9fd2	refactor: extract internal500 penalty logic to dedicated file	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+7cca69a1368b9a2ab3382d9a858b6f39113158c9	fix: move internal500 counter reset to cover all success paths	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+093a5a260edcd8e1c1562e0dfe73963e76e8a3e0	feat(antigravity): progressive penalty for consecutive INTERNAL 500 errors	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1854050df3be90d2556ee3bff220cb1705d04bcd	feat(tls-fingerprint): 新增 TLS 指纹 Profile 数据库管理及代码质量优化	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+975e6b15635a3284505457ddb1e2bda895d3abc4	fix: 修复 golangci-lint 报告的 5 个问题	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f6fd7c83e3c43a3f292d3090b87308454b577640	feat(antigravity): 从 LoadCodeAssist 复用 TierInfo 提取 plan_type	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+c2965c0fb0c86133f3d8f1e48037f95a29def876	feat(antigravity): 自动设置隐私并支持后台手动重试	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+f10e56be7eba3c0fa767696a20c6032433d370ee	refactor(test): improve type assertions in ops endpoint context tests	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+68f151f5c02d44e4fb29fc98913b035676bdbf84	feat(apicompat): add Responses↔Anthropic bidirectional format conversion	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+db9021f9c15a6cfc7cedf0cc52b8a2d48a32eeaa	feat(ops): propagate endpoint/request-type context in handlers; add UpstreamURL to upstream error events	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+4feacf221319b67e5239cfe71ebf654d1bbf0cc6	fix(apicompat): support array content for system and tool messages	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+2c667a159cf5eae1d030590cf1afc48f90d9c304	fix(provider): retain upstream model for gemini compat and ws	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+bac408044fcb4526dbeb939badd78b52f6f6e852	fix(provider): preserve requested model in antigravity and sora	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+8afa8c1091aa2b6685f1f800db97c6eaa88e0b30	fix(apicompat): 修正 Anthropic→OpenAI 推理级别映射	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+528ff5d28c9b21cae4535129df8c6c158345ea4b	fix(antigravity): fast-fail on proxy unavailable, temp-unschedule account	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e443a6a1eaa66b3b32a12df15a534e5a5b460ccc	fix: 移除 staticcheck S1005 警告的多余 blank identifier	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+963494ec6f88cacde8fb9f047de5b72e0ebe5154	fix: Anthropic tool schema 转 Responses API 时补充缺失的 properties 字段	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a6764e82f252c8f1d9699256ac30f6774a46cb1a	修复 OAuth/SetupToken 转发请求体重排并增加调试开关	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+1fd1a58a7ad0006cd6d1e7e90bd6399df50998da	fix: record original upstream status code when failover exhausted (#1128)	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+a6f99cf534c67d968cfdb7f9f58828d4c49cab25	refactor(antigravity): unify TestConnection with dispatch retry loop	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+d795734352732d0066ba114186dcb24caf2f929d	fix(antigravity): add stream keepalive to prevent connection drops	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+71f72e167eb00c68ce46391f9d98f24ccfde9c0f	chore(antigravity): bump default User-Agent version to 1.20.5	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+552a4b998a8c6886df61f4afb69d0ddf98c223db	fix: resolve golangci-lint issues (gofmt, errcheck)	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+0d2061b2687543832481700e2e16177429ead4e1	fix: remove ClaudeMax references not yet in upstream/main	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+8a260defc27352a92797ae94be506001da16f623	refactor: replace sync.Map credits state with AICredits rate limit key	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ced90e1d8438ac72688e326d09f9ee6d6572ad20	feat: add AI Credits balance handling and update model status indicators	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+17e40333403110fb8d07b030ad4f50896455486f	feat: implement resolveCreditsOveragesModelKey function to stabilize model key resolution for credit overages	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+7bd1972f945a14fed4bf981541fbcf65ed55e4b2	refactor: migrate all handlers to shared endpoint normalization middleware	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+90b38381737405e50b8f127aa26bd04ccee613ed	fix: 移除 Gemini 不支持的 patternProperties 字段 #795	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+e3f1fd9b6346e3148634f01563829f856fe87f9a	fix: handle strings.Builder write errors in assistant parsing	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+ece0606feddd1dbfdcd779cbf2dcaffba17a35c4	fix: consolidate chat-completions compatibility fixes	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+6344fa2a86eb0900424c72cb4324601f62f05121	feat(antigravity): add 403 forbidden status detection, classification and display	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+cdb64b0d337b147ff7218eab6b069fe5ea19f83b	fix: remove SSE termination marker from DefaultStopSequences	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+611fd884bd0a356ef8c0f97b2511ff4ca58951cd	feat: decouple billing correctness from usage log batching	path_set_B	false	无对应旧批次条目	仅路径索引；本轮未逐项复核，不据旧记录宣称当前已覆盖
+856d7ea9056b08b9f52831d085741370e1863959	fix: expose mapped antigravity test models	supplemental_focus	false	batch-01 #034	采用：仅 Antigravity 管理测试模型映射
+9d3cc4507ff773e8f52e7340f20a5ffcfe8df22f	fix(antigravity): keep legacy default passthroughs and bill Claude 5.5 tier IDs at base rates	supplemental_focus	false	batch-02 #154	默认透传已覆盖；目录与计价差额本次不引入
+53002f677c3d8e182ba11858e00b301079107f6e	perf(scheduler): 调度快照解码结果常驻进程内存	supplemental_focus	false	batch-03 #188	本次不引入：大范围调度缓存重构
