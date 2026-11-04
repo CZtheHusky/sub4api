@@ -136,7 +136,7 @@ ccodex README 仅用于发现差异，不能替代官方源码。主要依据是
 
 - OAuth/PAT Responses Lite：工具和非空 instructions 转为输入前缀，保留已有历史工具声明、工具结果、schema 与显式 tool_choice；图片 detail 仅在图片内容项上移除，不递归改写工具 schema。API key 不套用此私有转换。
 - 普通 OpenAI/Codex HTTP、透传与 WS 请求在缺失时补齐 Codex 风格的 `client_metadata`、`x-codex-turn-metadata`、session/thread/window headers；已有调用方字段优先，整数与 compaction 元数据保持精度。未提升的非 OpenAI 兼容供应商 legacy compact body 不新增普通 `client_metadata`。
-- `environment_context` 的 `timezone` 与 `current_date` 使用账号固定 IANA 时区生成；已有客户端时区会被替换，缺失字段会补齐，日期按该时区重新生成。默认时区为 `Asia/Singapore`，配置不覆盖客户端之外的非 OpenAI 平台。
+- 匹配结构的 OpenAI user `environment_context` 使用账号固定 IANA 时区：已有 timezone 会被替换，缺失时补齐；已有 current_date 保留，仅缺失时按该时区生成。默认时区为 `Asia/Singapore`，非 OpenAI 平台不套用此处理。
 - Codex identity fallback 使用本机 Windows 基线 `Windows 10.0.22621.1848; x86_64; dumb`，并与当前 Codex client version、originator、version header 同源；管理员显式 UA 设置仍可覆盖指纹部分。
 - `/responses/compact` 对 OpenAI 账号在 API ingress 转成当前 native Responses compaction v2：`stream=true`、`store=false`、末尾 `compaction_trigger`、`remote_compaction_v2`；非 OpenAI 兼容供应商保留原 legacy compact 路径。
 - 普通 HTTP 与透传统一 session/thread/turn 元数据，身份隔离包含调用方和上游凭据；工具续接保留真实 turn_id/时间，不凭每次 HTTP 请求生成新 turn。OpenAI 账号的 legacy compact 输入先转为 native `/responses` compaction v2，因此走 regular Responses zstd；非 OpenAI 兼容供应商 legacy compact、API key 其他域名与 WS 帧不套用 zstd。重试的 GetBody 和 ContentLength 必须与实际发送内容一致。
