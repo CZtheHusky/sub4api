@@ -588,6 +588,9 @@ func buildParts(content json.RawMessage, toolIDToName map[string]string, allowDu
 					ID: block.ToolUseID,
 				},
 			})
+			// tool_result content 中的 base64 图片/文档以 inlineData 附带，
+			// 文字仍由上面的 functionResponse 承载。
+			parts = append(parts, extractToolResultInlineParts(block.Content)...)
 		}
 	}
 
@@ -636,6 +639,33 @@ func parseToolResultContent(content json.RawMessage, isError bool) string {
 
 	// 返回原始 JSON
 	return string(content)
+}
+
+// extractToolResultInlineParts 提取 tool_result content 中的 base64 图片/文档，
+// 转为 Gemini inlineData parts；文字内容仍由 functionResponse 承载。
+func extractToolResultInlineParts(content json.RawMessage) []GeminiPart {
+	if len(content) == 0 {
+		return nil
+	}
+	var innerBlocks []ContentBlock
+	if err := json.Unmarshal(content, &innerBlocks); err != nil {
+		return nil
+	}
+	var inlineParts []GeminiPart
+	for _, item := range innerBlocks {
+		if (item.Type == "image" || item.Type == "document") &&
+			item.Source != nil &&
+			item.Source.Type == "base64" &&
+			strings.TrimSpace(item.Source.Data) != "" {
+			inlineParts = append(inlineParts, GeminiPart{
+				InlineData: &GeminiInlineData{
+					MimeType: item.Source.MediaType,
+					Data:     item.Source.Data,
+				},
+			})
+		}
+	}
+	return inlineParts
 }
 
 // buildGenerationConfig 构建 generationConfig

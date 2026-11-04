@@ -79,7 +79,7 @@ func (a *Account) modelRateLimitKeysForRequest(ctx context.Context, requestedMod
 	keys := []string{modelKey}
 	switch a.Platform {
 	case PlatformAntigravity:
-		if isAntigravityGeminiModel(modelKey) && modelKey != antigravityGeminiModelRateLimitKey {
+		if isAntigravityGeminiModel(modelKey) && !isAntigravityGeminiImageModel(modelKey) && modelKey != antigravityGeminiModelRateLimitKey {
 			keys = append(keys, antigravityGeminiModelRateLimitKey)
 		}
 	case PlatformOpenAI:
@@ -154,13 +154,20 @@ func isAntigravityGeminiModel(model string) bool {
 	return strings.HasPrefix(normalizeAntigravityModelName(model), "gemini-")
 }
 
+// isAntigravityGeminiImageModel 判断是否为 Antigravity 图片生成 Gemini 模型。
+// 图片模型与文本模型的限流互不共享：图片 429 不应冻结同账号的文本模型家族键。
+func isAntigravityGeminiImageModel(model string) bool {
+	normalized := normalizeAntigravityModelName(model)
+	return strings.HasPrefix(normalized, "gemini-") && strings.Contains(normalized, "-image")
+}
+
 func antigravityModelRateLimitKeys(model string) []string {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		return nil
 	}
 	keys := []string{model}
-	if isAntigravityGeminiModel(model) && model != antigravityGeminiModelRateLimitKey {
+	if isAntigravityGeminiModel(model) && !isAntigravityGeminiImageModel(model) && model != antigravityGeminiModelRateLimitKey {
 		keys = append(keys, antigravityGeminiModelRateLimitKey)
 	}
 	return keys

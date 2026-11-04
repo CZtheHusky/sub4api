@@ -141,6 +141,13 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 		injectedBody = reconciled
 	}
 
+	// 原生 Gemini 历史中的 functionCall 缺失 thoughtSignature 时补 dummy 值，
+	// 与兼容路径保持一致，避免上游严格校验直接 400。仅当最终映射目标为
+	// Gemini 模型时生效：Claude 目标不能携带 Gemini dummy 签名。
+	if strings.HasPrefix(strings.ToLower(mappedModel), "gemini-") {
+		injectedBody = ensureGeminiFunctionCallThoughtSignatures(injectedBody)
+	}
+
 	// 包装请求
 	wrappedBody, err := s.wrapV1InternalRequest(projectID, mappedModel, injectedBody)
 	if err != nil {

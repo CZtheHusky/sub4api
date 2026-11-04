@@ -38,3 +38,30 @@ func TestGeminiUsageMapping_NoCacheCreationTokens(t *testing.T) {
 		require.Zero(t, usage.CacheCreationInputTokens)
 	})
 }
+
+// prompt 被拦截（promptFeedback.blockReason）时上游可能只报 cachedContentTokenCount、
+// 缺 promptTokenCount：input_tokens 差值下限为 0，缓存命中仍照上游所报计入。
+func TestGeminiUsageMapping_MissingPromptTokenCountKeepsInputNonNegative(t *testing.T) {
+	const blockedBody = `{"candidates":[{"content":{"parts":[{"text":"blocked"}],"role":"model"},"finishReason":"STOP"}],` +
+		`"usageMetadata":{"candidatesTokenCount":2,"cachedContentTokenCount":40,"thoughtsTokenCount":0}}`
+
+	t.Run("non-stream", func(t *testing.T) {
+		_, usage, err := TransformGeminiToClaude([]byte(blockedBody), "gemini-3.1-pro-preview")
+		require.NoError(t, err)
+		require.NotNil(t, usage)
+		require.Zero(t, usage.InputTokens)
+		require.Equal(t, 40, usage.CacheReadInputTokens)
+	})
+
+	t.Run("stream", func(t *testing.T) {
+		p := NewStreamingProcessor("gemini-3.1-pro-preview")
+		out := p.ProcessLine(`data: {"response":` + blockedBody + `}`)
+		require.True(t, strings.Contains(string(out), `"message_start"`))
+		require.Contains(t, string(out), `"input_tokens":0`, "message_start 的 input_tokens 不应为负")
+		require.Contains(t, string(out), `"cache_read_input_tokens":40`)
+		_, usage := p.Finish()
+		require.NotNil(t, usage)
+		require.Zero(t, usage.InputTokens)
+		require.Equal(t, 40, usage.CacheReadInputTokens)
+	})
+}

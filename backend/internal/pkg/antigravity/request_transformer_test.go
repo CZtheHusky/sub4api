@@ -694,3 +694,37 @@ func TestToolConfigAlwaysPresent(t *testing.T) {
 		})
 	}
 }
+
+// tool_result content 中的 base64 图片/文档必须以 inlineData parts 附带在
+// functionResponse 之后，文字仍留在 functionResponse；否则工具产出的截图
+// 会被静默丢弃，模型看不到图像证据。
+func TestBuildParts_ToolResultInlineImagesPreserved(t *testing.T) {
+	content := `[
+		{"type":"tool_result","tool_use_id":"toolu_1","content":[
+			{"type":"text","text":"screenshot captured"},
+			{"type":"image","source":{"type":"base64","media_type":"image/png","data":"aW1nMQ=="}},
+			{"type":"document","source":{"type":"base64","media_type":"application/pdf","data":"JVBERi0="}}
+		]}
+	]`
+	parts, _, err := buildParts(json.RawMessage(content), map[string]string{"toolu_1": "capture"}, true)
+	require.NoError(t, err)
+	require.Len(t, parts, 3)
+
+	require.NotNil(t, parts[0].FunctionResponse)
+	require.Equal(t, "capture", parts[0].FunctionResponse.Name)
+	require.Contains(t, parts[0].FunctionResponse.Response["result"], "screenshot captured")
+
+	require.NotNil(t, parts[1].InlineData)
+	require.Equal(t, "image/png", parts[1].InlineData.MimeType)
+	require.Equal(t, "aW1nMQ==", parts[1].InlineData.Data)
+
+	require.NotNil(t, parts[2].InlineData)
+	require.Equal(t, "application/pdf", parts[2].InlineData.MimeType)
+
+	// 纯文字 tool_result 不产生额外 parts。
+	textOnly := `[{"type":"tool_result","tool_use_id":"toolu_2","content":[{"type":"text","text":"ok"}]}]`
+	parts, _, err = buildParts(json.RawMessage(textOnly), map[string]string{"toolu_2": "run"}, true)
+	require.NoError(t, err)
+	require.Len(t, parts, 1)
+	require.NotNil(t, parts[0].FunctionResponse)
+}

@@ -1291,3 +1291,27 @@ func TestNormalizeAntigravityModelName(t *testing.T) {
 		})
 	}
 }
+
+// Antigravity 图片 Gemini 模型 429 只写自身模型键，
+// 不再附带共享的 antigravity:gemini 家族键冻结文本模型。
+func TestSetAntigravityModelRateLimits_ImageDoesNotWriteFamilyScope(t *testing.T) {
+	repo := &stubAntigravityAccountRepo{}
+	svc := &AntigravityGatewayService{}
+	account := &Account{ID: 789, Platform: PlatformAntigravity}
+	resetAt := time.Now().Add(30 * time.Second)
+
+	success := svc.setAntigravityModelRateLimits(
+		context.Background(),
+		repo,
+		account,
+		"gemini-3.1-flash-image-preview",
+		"[test]",
+		429,
+		resetAt,
+		false,
+	)
+
+	require.True(t, success)
+	require.Len(t, repo.modelRateLimitCalls, 1)
+	require.Equal(t, "gemini-3.1-flash-image-preview", repo.modelRateLimitCalls[0].modelKey)
+}

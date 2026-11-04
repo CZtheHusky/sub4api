@@ -2012,3 +2012,153 @@ func generateLargeUnwrapJSON(minSize int) []byte {
 	b, _ := json.Marshal(outer)
 	return b
 }
+
+// 原生 Gemini 请求重放的历史 functionCall 缺 thoughtSignature 时，
+// ForwardGemini 必须在上游转发前补 dummy 签名（与兼容路径一致），
+// 避免上游严格校验直接 400 且反应式 rectifier 因 body 无签名键无法触发。
+func TestAntigravityGatewayService_ForwardGemini_FillsMissingFunctionCallThoughtSignature(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body, err := json.Marshal(map[string]any{
+		"contents": []map[string]any{
+			{"role": "user", "parts": []map[string]any{{"text": "run the tool"}}},
+			{"role": "model", "parts": []map[string]any{{"functionCall": map[string]any{"name": "get_weather", "args": map[string]any{"city": "sf"}}}}},
+			{"role": "user", "parts": []map[string]any{{"functionResponse": map[string]any{"name": "get_weather", "response": map[string]any{"temp": 20}}}}},
+		},
+	})
+	require.NoError(t, err)
+
+	writer := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(writer)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-2.5-flash:generateContent", bytes.NewReader(body))
+
+	upstream := &queuedHTTPUpstreamStub{responses: []*http.Response{{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+		Body:       io.NopCloser(strings.NewReader("data: {\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{}}}\n\n")),
+	}}}
+	svc := &AntigravityGatewayService{
+		settingService: NewSettingService(&antigravitySettingRepoStub{}, &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}),
+		tokenProvider:  &AntigravityTokenProvider{},
+		httpUpstream:   upstream,
+	}
+	account := &Account{
+		ID: 104, Name: "native-gemini-sig", Platform: PlatformAntigravity, Type: AccountTypeOAuth, Status: StatusActive, Concurrency: 1,
+		Credentials: map[string]any{"access_token": "token", "project_id": "project-104", "model_mapping": map[string]any{"gemini-2.5-flash": "gemini-2.5-flash"}},
+	}
+
+	result, err := svc.ForwardGemini(context.Background(), c, account, "gemini-2.5-flash", "generateContent", false, body, false)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Len(t, upstream.requestBodies, 1)
+
+	var wrapped map[string]any
+	require.NoError(t, json.Unmarshal(upstream.requestBodies[0], &wrapped))
+	request, ok := wrapped["request"].(map[string]any)
+	require.True(t, ok)
+	contents, ok := request["contents"].([]any)
+	require.True(t, ok)
+	modelTurn, ok := contents[1].(map[string]any)
+	require.True(t, ok)
+	parts, ok := modelTurn["parts"].([]any)
+	require.True(t, ok)
+	require.Len(t, parts, 1)
+	part, ok := parts[0].(map[string]any)
+	require.True(t, ok)
+	require.Contains(t, part, "functionCall")
+	require.Equal(t, geminiDummyThoughtSignature, part["thoughtSignature"], "缺失的 functionCall thoughtSignature 应补 dummy 值")
+}
+
+// 签名填充按最终映射目标判定：目标为 Claude 时不注入 Gemini dummy 签名
+// （pkg buildParts 明确 Claude 不能使用 Gemini dummy signature），已有真实
+// 签名的 functionCall 保持原样不被覆盖。
+func TestAntigravityGatewayService_ForwardGemini_SignatureFillHonorsTargetModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	buildBody := func() []byte {
+		body, err := json.Marshal(map[string]any{
+			"contents": []map[string]any{
+				{"role": "user", "parts": []map[string]any{{"text": "go"}}},
+				{"role": "model", "parts": []map[string]any{
+					{"functionCall": map[string]any{"name": "tool_missing_sig", "args": map[string]any{}}},
+					{"functionCall": map[string]any{"name": "tool_real_sig", "args": map[string]any{}}, "thoughtSignature": "real-sig"},
+				}},
+			},
+		})
+		require.NoError(t, err)
+		return body
+	}
+
+	newSvc := func() (*AntigravityGatewayService, *queuedHTTPUpstreamStub, *gin.Context) {
+		upstream := &queuedHTTPUpstreamStub{responses: []*http.Response{{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+			Body:       io.NopCloser(strings.NewReader("data: {\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{}}}\n\n")),
+		}}}
+		svc := &AntigravityGatewayService{
+			settingService: NewSettingService(&antigravitySettingRepoStub{}, &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}),
+			tokenProvider:  &AntigravityTokenProvider{},
+			httpUpstream:   upstream,
+		}
+		writer := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(writer)
+		return svc, upstream, c
+	}
+
+	extractParts := func(t *testing.T, raw []byte) []map[string]any {
+		var wrapped map[string]any
+		require.NoError(t, json.Unmarshal(raw, &wrapped))
+		request, ok := wrapped["request"].(map[string]any)
+		require.True(t, ok)
+		contents, ok := request["contents"].([]any)
+		require.True(t, ok)
+		modelTurn, ok := contents[1].(map[string]any)
+		require.True(t, ok)
+		parts, ok := modelTurn["parts"].([]any)
+		require.True(t, ok)
+		out := make([]map[string]any, 0, len(parts))
+		for _, p := range parts {
+			pm, ok := p.(map[string]any)
+			require.True(t, ok)
+			out = append(out, pm)
+		}
+		return out
+	}
+
+	t.Run("gemini target fills only missing signatures", func(t *testing.T) {
+		svc, upstream, c := newSvc()
+		body := buildBody()
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-2.5-flash:generateContent", bytes.NewReader(body))
+		account := &Account{
+			ID: 105, Name: "ag-gemini-target", Platform: PlatformAntigravity, Type: AccountTypeOAuth, Status: StatusActive, Concurrency: 1,
+			Credentials: map[string]any{"access_token": "token", "project_id": "project-105", "model_mapping": map[string]any{"gemini-2.5-flash": "gemini-2.5-flash"}},
+		}
+
+		_, err := svc.ForwardGemini(context.Background(), c, account, "gemini-2.5-flash", "generateContent", false, body, false)
+		require.NoError(t, err)
+		require.Len(t, upstream.requestBodies, 1)
+
+		parts := extractParts(t, upstream.requestBodies[0])
+		require.Len(t, parts, 2)
+		require.Equal(t, geminiDummyThoughtSignature, parts[0]["thoughtSignature"], "缺失签名的 functionCall 应补 dummy")
+		require.Equal(t, "real-sig", parts[1]["thoughtSignature"], "已有真实签名不得被覆盖")
+	})
+
+	t.Run("claude target never gets gemini dummy signature", func(t *testing.T) {
+		svc, upstream, c := newSvc()
+		body := buildBody()
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-2.5-flash:generateContent", bytes.NewReader(body))
+		// 入站名是 gemini-*，但账号映射把最终目标指向 Claude 模型。
+		account := &Account{
+			ID: 106, Name: "ag-claude-target", Platform: PlatformAntigravity, Type: AccountTypeOAuth, Status: StatusActive, Concurrency: 1,
+			Credentials: map[string]any{"access_token": "token", "project_id": "project-106", "model_mapping": map[string]any{"gemini-2.5-flash": "claude-sonnet-4-5"}},
+		}
+
+		_, err := svc.ForwardGemini(context.Background(), c, account, "gemini-2.5-flash", "generateContent", false, body, false)
+		require.NoError(t, err)
+		require.Len(t, upstream.requestBodies, 1)
+
+		parts := extractParts(t, upstream.requestBodies[0])
+		require.Len(t, parts, 2)
+		require.NotContains(t, parts[0], "thoughtSignature", "最终目标为 Claude 时不得注入 Gemini dummy 签名")
+		require.Equal(t, "real-sig", parts[1]["thoughtSignature"])
+	})
+}

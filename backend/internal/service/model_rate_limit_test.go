@@ -543,3 +543,41 @@ func TestIsAnthropicFableModel(t *testing.T) {
 	require.False(t, isAnthropicFableModel("claude-sonnet-4-6"))
 	require.False(t, isAnthropicFableModel(""))
 }
+
+// Antigravity 图片 Gemini 模型与文本 Gemini 模型限流互相隔离：
+// 图片 429 不冻结共享的 antigravity:gemini 家族键，文本模型可继续调度；
+// 文本模型限流也不阻断图片模型。
+func TestIsModelRateLimited_AntigravityImageDoesNotInheritGeminiFamilyLimit(t *testing.T) {
+	future := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
+	account := &Account{
+		Platform: PlatformAntigravity,
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				antigravityGeminiModelRateLimitKey: map[string]any{
+					"rate_limit_reset_at": future,
+				},
+			},
+		},
+	}
+
+	require.True(t, account.isModelRateLimitedWithContext(context.Background(), "gemini-3.1-pro-preview"))
+	require.False(t, account.isModelRateLimitedWithContext(context.Background(), "gemini-3.1-flash-image-preview"))
+}
+
+func TestIsModelRateLimited_AntigravityImageOwnKeyStillBlocks(t *testing.T) {
+	future := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
+	account := &Account{
+		Platform: PlatformAntigravity,
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				// 默认映射把各图片变体统一到 gemini-3.1-flash-image。
+				"gemini-3.1-flash-image": map[string]any{
+					"rate_limit_reset_at": future,
+				},
+			},
+		},
+	}
+
+	require.True(t, account.isModelRateLimitedWithContext(context.Background(), "gemini-3-pro-image-preview"))
+	require.False(t, account.isModelRateLimitedWithContext(context.Background(), "gemini-3.1-pro-preview"))
+}

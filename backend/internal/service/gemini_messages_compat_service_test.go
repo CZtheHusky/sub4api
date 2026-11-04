@@ -849,6 +849,17 @@ func TestExtractGeminiUsage(t *testing.T) {
 			},
 		},
 		{
+			// 被拦截的 prompt 可能只报缓存命中，不能生成负输入账单，
+			// 也不能为避免负数而丢掉上游已报告的缓存用量。
+			name:    "仅报缓存命中时输入非负且保留缓存用量",
+			input:   `{"usageMetadata":{"cachedContentTokenCount":20}}`,
+			wantNil: false,
+			wantUsage: &ClaudeUsage{
+				InputTokens:          0,
+				CacheReadInputTokens: 20,
+			},
+		},
+		{
 			name:    "无 usageMetadata",
 			input:   `{"candidates":[]}`,
 			wantNil: true,

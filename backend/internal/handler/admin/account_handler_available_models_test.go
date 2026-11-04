@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/MACOS-DO/sub4api/internal/config"
+	"github.com/MACOS-DO/sub4api/internal/pkg/antigravity"
 	"github.com/MACOS-DO/sub4api/internal/pkg/tlsfingerprint"
 	"github.com/MACOS-DO/sub4api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -558,4 +559,66 @@ func TestAccountHandlerGetAvailableModels_TypeSafeOnlyReturnsJev(t *testing.T) {
 		require.Len(t, resp.Data, 1)
 		require.Equal(t, "jev-latest", resp.Data[0].ID)
 	}
+}
+
+// Antigravity 账号配置了显式 model_mapping 时，连通测试的可选模型应使用
+// 映射的请求侧 key（含别名），而不是固定的内置目录；执行测试时仍按映射
+// value 发送实际上游模型。未配置映射时回退默认目录。
+func TestAccountHandlerGetAvailableModels_Antigravity(t *testing.T) {
+	defaults := antigravity.DefaultModels()
+	require.NotEmpty(t, defaults)
+	defaultID := defaults[0].ID
+
+	t.Run("no mapping falls back to default catalog", func(t *testing.T) {
+		svc := &availableModelsAdminService{
+			stubAdminService: newStubAdminService(),
+			account: service.Account{
+				ID: 51, Name: "ag-defaults", Platform: service.PlatformAntigravity,
+				Type: service.AccountTypeOAuth, Status: service.StatusActive,
+				Credentials: map[string]any{},
+			},
+		}
+		router := setupAvailableModelsRouter(svc)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/51/models", nil))
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		require.Contains(t, rec.Body.String(), defaultID)
+	})
+
+	t.Run("explicit mapping exposes request-side keys", func(t *testing.T) {
+		mapping := map[string]any{"my-alias": "gemini-3.1-pro-high", defaultID: defaultID}
+		svc := &availableModelsAdminService{
+			stubAdminService: newStubAdminService(),
+			account: service.Account{
+				ID: 52, Name: "ag-mapped", Platform: service.PlatformAntigravity,
+				Type: service.AccountTypeOAuth, Status: service.StatusActive,
+				Credentials: map[string]any{"model_mapping": mapping},
+			},
+		}
+		router := setupAvailableModelsRouter(svc)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/52/models", nil))
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		var resp struct {
+			Data []struct {
+				ID          string `json:"id"`
+				DisplayName string `json:"display_name"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		ids := make([]string, 0, len(resp.Data))
+		for _, model := range resp.Data {
+			ids = append(ids, model.ID)
+		}
+		require.Equal(t, []string{defaultID, "my-alias"}, ids, "映射 key 按字典序返回，默认目录条目保留展示名")
+	})
+
+	t.Run("map[string]string mapping and blank keys skipped", func(t *testing.T) {
+		models := antigravityAccountTestModels(map[string]string{"  ": "x", "alias-b": "gemini-3.1-pro-high"})
+		require.Len(t, models, 1)
+		require.Equal(t, "alias-b", models[0].ID)
+		require.Equal(t, "alias-b", models[0].DisplayName)
+	})
 }

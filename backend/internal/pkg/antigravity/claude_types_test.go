@@ -1,6 +1,9 @@
 package antigravity
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestDefaultModels_ContainsNewAndLegacyImageModels(t *testing.T) {
 	t.Parallel()
@@ -42,5 +45,39 @@ func TestDefaultModels_ContainsNewAndLegacyImageModels(t *testing.T) {
 		if _, ok := byID[id]; !ok {
 			t.Fatalf("expected model %q to be exposed in DefaultModels", id)
 		}
+	}
+}
+
+// Anthropic 官方在 thinking 块上始终携带 signature 键（content_block_start 时为空）；
+// 严格客户端缺少该键会解析失败，即使签名为空也必须输出。
+func TestClaudeContentItem_ThinkingAlwaysHasSignature(t *testing.T) {
+	t.Parallel()
+
+	b, err := json.Marshal(ClaudeContentItem{Type: "thinking", Thinking: "draft"})
+	if err != nil {
+		t.Fatalf("marshal thinking item: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("decode thinking item: %v", err)
+	}
+	if _, ok := decoded["signature"]; !ok {
+		t.Fatalf("thinking item must always include signature key, got %s", b)
+	}
+	if _, ok := decoded["thinking"]; !ok {
+		t.Fatalf("thinking item must always include thinking key, got %s", b)
+	}
+
+	// 非 thinking 块保持原有序列化，不额外注入 signature。
+	b, err = json.Marshal(ClaudeContentItem{Type: "text", Text: "hi"})
+	if err != nil {
+		t.Fatalf("marshal text item: %v", err)
+	}
+	decoded = nil
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("decode text item: %v", err)
+	}
+	if _, ok := decoded["signature"]; ok {
+		t.Fatalf("text item should not carry signature key, got %s", b)
 	}
 }
