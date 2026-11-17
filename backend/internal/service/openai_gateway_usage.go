@@ -1187,6 +1187,33 @@ func (s *OpenAIGatewayService) UpdateCodexUsageSnapshotFromHeaders(ctx context.C
 	if snapshot := ParseCodexRateLimitHeaders(headers); snapshot != nil {
 		s.updateCodexUsageSnapshot(ctx, accountID, snapshot)
 	}
+	s.updateCodexCreditsSnapshot(ctx, accountID, headers)
+}
+
+// updateCodexCreditsSnapshot 把推理响应的 x-codex-credits-* 头写入账号 credits 快照
+// （与额度查询共用的 codex_credits_snapshot 展示键）。credits 状态是调度豁免
+// （openAICreditOverageActive）的输入，写入频率与 codex 用量快照一致（30 秒节流）。
+// 影子账号守卫与用量快照同约定：调用点必须排除 spark 影子。
+func (s *OpenAIGatewayService) updateCodexCreditsSnapshot(ctx context.Context, accountID int64, headers http.Header) {
+	if s == nil || s.accountRepo == nil || accountID <= 0 {
+		return
+	}
+	credits := parseCodexCreditsHeaders(headers)
+	if credits == nil {
+		return
+	}
+	now := time.Now()
+	if !s.getCodexCreditsSnapshotThrottle().Allow(accountID, now) {
+		return
+	}
+	snapshot := openAICreditsSnapshot{Credits: credits, FetchedAt: now.Unix()}
+	go func() {
+		updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = s.accountRepo.UpdateExtra(updateCtx, accountID, map[string]any{
+			openaiQuotaCreditsKey: snapshot,
+		})
+	}()
 }
 
 func cloneImageSizeBreakdown(input map[string]int) map[string]int {

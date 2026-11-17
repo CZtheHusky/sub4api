@@ -64,8 +64,9 @@ var schedulerNeutralExtraKeyPrefixes = []string{
 }
 
 var schedulerNeutralExtraKeys = map[string]struct{}{
-	"codex_usage_updated_at":     {},
-	"codex_credits_snapshot":     {},
+	"codex_usage_updated_at": {},
+	// codex_credits_snapshot 不在此列：它是调度豁免（credits 接管）的输入，热路径
+	// 写入（30 秒节流）必须失效调度投影，否则 has_credits 变化对候选过滤不可见。
 	"codex_referral_snapshot":    {},
 	"grok_billing_snapshot":      {},
 	"session_window_utilization": {},

@@ -1393,6 +1393,7 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 			if snapshot := ParseCodexRateLimitHeaders(resp.Header); snapshot != nil {
 				s.updateCodexUsageSnapshot(ctx, account.ID, snapshot)
 			}
+			s.updateCodexCreditsSnapshot(ctx, account.ID, resp.Header)
 		} else if account.IsShadow() && account.ParentAccountID != nil {
 			notifyOpenAIAutoReset(*account.ParentAccountID)
 		}

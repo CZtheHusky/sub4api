@@ -1270,6 +1270,10 @@ export default {
 	    thresholdHint: '两个窗口独立判断，任一达到自身阈值即触发。可填写 0.1–100，默认均为 100。',
 	    thresholdInvalid: '自动使用重置卡阈值必须在 0.1% 到 100% 之间。'
 	  },
+      creditOverage: {
+        title: '额度打满后继续使用点数余额',
+        hint: '5h/7d 额度达到 100% 后不暂停账号，继续转发并由 ChatGPT 按账号点数余额（credits）自动计费。会真实消耗账号余额；点数耗尽或收到额度 429 时自动回到暂停/自动用卡规则。账号是否允许使用点数由 OpenAI 账号设置决定。默认关闭。'
+      },
       // Quota control (Anthropic OAuth/SetupToken only)
       quotaControl: {
         title: '配额控制',

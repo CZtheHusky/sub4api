@@ -1168,6 +1168,10 @@ export default {
 	    thresholdHint: 'Each window is evaluated independently. Enter 0.1–100; both default to 100.',
 	    thresholdInvalid: 'Automatic reset-credit thresholds must be between 0.1% and 100%.'
 	  },
+      creditOverage: {
+        title: 'Continue on credits after quota is exhausted',
+        hint: 'Keeps the account schedulable after 5h/7d usage hits 100% and bills further requests against the account credits balance automatically. This spends real account balance; when credits run out or a quota 429 arrives, the account falls back to the pause/auto-reset rules. Whether credits may be spent is an OpenAI account setting. Off by default.'
+      },
       // Quota control (Anthropic OAuth/SetupToken only)
       quotaControl: {
         title: 'Quota Control',

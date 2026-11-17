@@ -1045,6 +1045,11 @@ func filterSchedulerExtra(extra map[string]any) map[string]any {
 		service.OpenAIAutoResetCredit5hThresholdExtraKey,
 		service.OpenAIAutoResetCredit7dThresholdExtraKey,
 		service.OpenAIAutoResetCreditStateExtraKey,
+		// credits 接管：豁免判定（openAICreditOverageActive）跑在候选过滤上，读的
+		// 是本投影。缺这两个键时豁免永远不生效，账号会在额度打满处被一刀切停调，
+		// 即使账号点数余额本可继续计费。
+		service.OpenAICreditOverageEnabledExtraKey,
+		"codex_credits_snapshot",
 		"model_rate_limits",
 		service.UpstreamBillingProbeExtraKey,
 		service.GrokMediaEligibleExtraKey,

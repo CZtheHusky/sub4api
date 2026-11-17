@@ -222,6 +222,12 @@ func (s *OpenAIGatewayService) markOpenAIOAuth429RateLimited(ctx context.Context
 	if disposition == openAIOAuth429Transient && s.openAIOAuth429RetryWindowActive(account) {
 		return
 	}
+	// quota 型 429 说明 credits 也无法覆盖本次请求（余额耗尽或账号侧未允许消费）；
+	// 被拒信号优先于余额展示，立即置 has_credits/unlimited=false 让调度豁免失效，
+	// 账号回到摘除+自动用卡路径。后续成功响应头或额度查询会恢复真实状态。
+	if disposition != openAIOAuth429Transient && openAICreditOverageEnabled(account) {
+		s.markOpenAICreditsExhausted(account)
+	}
 
 	now := time.Now()
 	cooldownUntil := now.Add(openAIOAuth429FallbackCooldown)

@@ -538,6 +538,13 @@ func shouldAutoPauseOpenAIAccountByQuota(ctx context.Context, account *Account) 
 	if account == nil || !account.IsOpenAI() {
 		return false, openAIQuotaAutoPauseDecision{}
 	}
+	// credits 接管：额度打满后由 ChatGPT 后端按账号点数余额自动计费，账号保持在
+	// 调度池内（headroom 评分为 0，自然成为其他账号耗尽后的兜底），同时跳过自动
+	// 用卡触发——重置卡留给 credits 耗尽后的窗口重置。credits 尽时响应头或 quota
+	// 型 429 会把 has_credits/unlimited 置 false，豁免失效后自动回到下方原有路径。
+	if openAICreditOverageActive(account) {
+		return false, openAIQuotaAutoPauseDecision{}
+	}
 	// 自动用卡有独立阈值：达到消费阈值时必须先退出调度；仅达到普通暂停阈值时，
 	// 只有新鲜状态明确存在可用卡才继续放行到消费阈值。
 	if config := ResolveOpenAIAutoResetCreditConfig(account); config.Enabled {

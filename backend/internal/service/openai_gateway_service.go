@@ -446,6 +446,8 @@ func (t *accountWriteThrottle) Allow(id int64, now time.Time) bool {
 
 var defaultOpenAICodexSnapshotPersistThrottle = newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval)
 
+var defaultOpenAICodexCreditsSnapshotThrottle = newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval)
+
 // ErrNoAvailableCompactAccounts indicates a legacy /responses/compact request
 // needs compact support but no compatible account is available.
 var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /responses/compact")
@@ -510,6 +512,7 @@ type OpenAIGatewayService struct {
 	openaiWSRetryMetrics                openAIWSRetryMetrics
 	responseHeaderFilter                *responseheaders.CompiledHeaderFilter
 	codexSnapshotThrottle               *accountWriteThrottle
+	codexCreditsSnapshotThrottle        *accountWriteThrottle
 	openAIModelsCache                   openAIModelsCache
 	openaiCompatSessionResponses        sync.Map
 	openaiCompatAnthropicDigestSessions sync.Map
@@ -571,22 +574,23 @@ func NewOpenAIGatewayService(
 			nil,
 			"service.openai_gateway",
 		),
-		httpUpstream:          httpUpstream,
-		deferredService:       deferredService,
-		openAITokenProvider:   openAITokenProvider,
-		grokTokenProvider:     grokTokenProvider,
-		toolCorrector:         NewCodexToolCorrector(),
-		openaiWSResolver:      NewOpenAIWSProtocolResolver(cfg),
-		resolver:              resolver,
-		channelService:        channelService,
-		balanceNotifyService:  balanceNotifyService,
-		settingService:        settingService,
-		userPlatformQuotaRepo: userPlatformQuotaRepo,
-		liveAttestation:       liveattestation.NewProvider(),
-		liveAttestationCipher: newLiveAttestationCipher(cfg),
-		responseHeaderFilter:  compileResponseHeaderFilter(cfg),
-		codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
-		openaiModelTransient:  newOpenAIAccountModelTransientState(openAIModelTransientDefaultMax),
+		httpUpstream:                 httpUpstream,
+		deferredService:              deferredService,
+		openAITokenProvider:          openAITokenProvider,
+		grokTokenProvider:            grokTokenProvider,
+		toolCorrector:                NewCodexToolCorrector(),
+		openaiWSResolver:             NewOpenAIWSProtocolResolver(cfg),
+		resolver:                     resolver,
+		channelService:               channelService,
+		balanceNotifyService:         balanceNotifyService,
+		settingService:               settingService,
+		userPlatformQuotaRepo:        userPlatformQuotaRepo,
+		liveAttestation:              liveattestation.NewProvider(),
+		liveAttestationCipher:        newLiveAttestationCipher(cfg),
+		responseHeaderFilter:         compileResponseHeaderFilter(cfg),
+		codexSnapshotThrottle:        newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
+		codexCreditsSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
+		openaiModelTransient:         newOpenAIAccountModelTransientState(openAIModelTransientDefaultMax),
 	}
 	if rateLimitService != nil {
 		rateLimitService.SetAccountRuntimeBlocker(svc)
@@ -690,6 +694,13 @@ func (s *OpenAIGatewayService) getCodexSnapshotThrottle() *accountWriteThrottle 
 		return s.codexSnapshotThrottle
 	}
 	return defaultOpenAICodexSnapshotPersistThrottle
+}
+
+func (s *OpenAIGatewayService) getCodexCreditsSnapshotThrottle() *accountWriteThrottle {
+	if s != nil && s.codexCreditsSnapshotThrottle != nil {
+		return s.codexCreditsSnapshotThrottle
+	}
+	return defaultOpenAICodexCreditsSnapshotThrottle
 }
 
 func (s *OpenAIGatewayService) billingDeps() *billingDeps {
