@@ -948,6 +948,7 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 			return true
 		}
 		retryBudget := s.openAIWSRetryTotalBudget()
+		wsCtx := context.WithValue(ctx, openAIGuardianSourceThreadKey{}, openAIGuardianSourceThread(c, originalBody))
 		retryStartedAt := time.Now()
 	wsRetryLoop:
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
@@ -961,7 +962,7 @@ func (s *OpenAIGatewayService) forwardWithoutHostedWebSearch(ctx context.Context
 			}
 			wsAttempts = attempt
 			wsResult, wsErr = s.forwardOpenAIWSV2(
-				ctx,
+				wsCtx,
 				c,
 				account,
 				wsReqBody,

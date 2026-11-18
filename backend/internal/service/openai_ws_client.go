@@ -140,6 +140,20 @@ func (d *coderOpenAIWSClientDialer) Dial(
 		}
 		opts.HTTPClient = proxyClient
 	}
+	routingEndpoint := openAIGuardianRoutingEndpoint(targetURL)
+	if routingEndpoint != nil && headers.Get("Cookie") != "" {
+		// The routing cookie belongs to this upgrade URL. net/http otherwise
+		// forwards Cookie on some same-domain redirects, even to another path.
+		client := http.DefaultClient
+		if opts.HTTPClient != nil {
+			client = opts.HTTPClient
+		}
+		dialClient := *client
+		dialClient.CheckRedirect = func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		opts.HTTPClient = &dialClient
+	}
 
 	conn, resp, err := coderws.Dial(ctx, targetURL, opts)
 	if err != nil {
@@ -162,6 +176,16 @@ func (d *coderOpenAIWSClientDialer) Dial(
 	respHeaders := http.Header(nil)
 	if resp != nil {
 		respHeaders = cloneHeader(resp.Header)
+		if routingEndpoint != nil {
+			var actual *url.URL
+			if resp.Request != nil && resp.Request.URL != nil && resp.Request.URL.Scheme == "https" {
+				actual = openAIGuardianRoutingEndpoint("wss" + strings.TrimPrefix(resp.Request.URL.String(), "https"))
+			}
+			if actual == nil || actual.Host != routingEndpoint.Host || actual.EscapedPath() != routingEndpoint.EscapedPath() {
+				// Cookies issued by a redirect target cannot pin the original URL.
+				respHeaders.Del("Set-Cookie")
+			}
+		}
 	}
 	wrapped.conn = conn
 	return wrapped, 0, respHeaders, nil

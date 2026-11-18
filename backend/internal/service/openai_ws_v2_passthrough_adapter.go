@@ -17,6 +17,7 @@ import (
 	coderws "github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 type openAIWSClientFrameConn struct {
@@ -891,6 +892,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	var upstreamConn openAIWSClientConn
 	statusCode := 0
 	var handshakeHeaders http.Header
+	var guardianPin, capturedGuardianPin *openAIGuardianRoutingPin
 	for {
 		headers, err = s.refreshOpenAIWSAuthHeaders(ctx, account, headers)
 		if err != nil {
@@ -898,9 +900,15 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		}
 		dialCtx, cancelDial := context.WithTimeout(ctx, s.openAIWSDialTimeout())
 		sentHeaders := cloneHeader(headers)
-		upstreamConn, statusCode, handshakeHeaders, err = dialer.Dial(dialCtx, wsURL, headers, proxyURL)
+		guardianPin = s.openAIGuardianReviewerRouting(ctx, c, account, wsURL, sentHeaders, gjson.GetBytes(firstClientMessage, "client_metadata.parent_response_id").String())
+		if guardianPin != nil {
+			sentHeaders.Del(openAICodexRoutingHintHeader)
+			guardianPin.apply(wsURL, sentHeaders)
+		}
+		upstreamConn, statusCode, handshakeHeaders, err = dialer.Dial(dialCtx, wsURL, sentHeaders, proxyURL)
 		cancelDial()
 		if err == nil {
+			capturedGuardianPin = captureOpenAIGuardianRoutingPin(account, wsURL, sentHeaders, handshakeHeaders)
 			break
 		}
 		var handshakeErr *openAIWSHandshakeError
@@ -944,6 +952,14 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	defer func() {
 		_ = upstreamConn.Close()
 	}()
+	if guardianPin != nil {
+		firstClientMessage, err = sjson.DeleteBytes(firstClientMessage, "service_tier")
+		if err != nil {
+			return err
+		}
+		usageMeta.initFromFirstFrame(firstClientMessage, capturedSessionModel)
+		usageMeta.captureRequestedReasoningEffort(originalFirstClientMessage, capturedSessionModel)
+	}
 	logOpenAIWSV2Passthrough(
 		"relay_dial_ok account_id=%d status_code=%d upstream_request_id=%s",
 		account.ID,
@@ -985,6 +1001,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	}
 
 	completedTurns := atomic.Int32{}
+	var guardianSourceThread atomic.Pointer[string]
+	if capturedGuardianPin != nil {
+		firstThread := openAIGuardianSourceThread(c, originalFirstClientMessage)
+		guardianSourceThread.Store(&firstThread)
+	}
 	turnLifecycle := newOpenAIWSPassthroughTurnLifecycle(true)
 	var acceptedTurnStartedAt atomic.Pointer[time.Time]
 	clientFrameConn := &openAIWSClientFrameConn{
@@ -1016,6 +1037,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			}
 			eventType := strings.TrimSpace(gjson.GetBytes(payload, "type").String())
 			isResponseCreate := eventType == "response.create"
+			rawFrame := payload
 			responseCreateAt := time.Time{}
 			acceptedTurn := false
 			if isResponseCreate {
@@ -1092,6 +1114,12 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				if requestModelForThisFrame == "" {
 					requestModelForThisFrame = capturedSessionModel
 				}
+				nextAffinity := WithOpenAIGuardianParentAffinity(context.Background(), c, rawFrame, requestModelForThisFrame)
+				nextPin := s.openAIGuardianReviewerRouting(nextAffinity, c, account, wsURL, headers, gjson.GetBytes(payload, "client_metadata.parent_response_id").String())
+				if nextPin != guardianPin {
+					err := errors.New("reviewer parent route changed; please reconnect")
+					return payload, nil, NewOpenAIWSClientCloseError(coderws.StatusGoingAway, err.Error(), err)
+				}
 				if hooks != nil && hooks.BeforeRequest != nil {
 					if err := hooks.BeforeRequest(turnNo, payload, requestModelForThisFrame); err != nil {
 						return payload, nil, err
@@ -1142,6 +1170,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			if policyErr == nil && blocked == nil && isResponseCreate {
 				out, _, policyErr = normalizeCodexRequestMetadata(out, nil, account, false)
 			}
+			if policyErr == nil && blocked == nil && isResponseCreate && guardianPin != nil {
+				out, policyErr = sjson.DeleteBytes(out, "service_tier")
+			}
 			// 多轮 passthrough usage：仅在成功（non-block / non-err）
 			// 的 response.create 帧上更新 usageMeta，使用
 			// filter 处理后的 payload，与首帧 policy-after-extract 语义
@@ -1157,6 +1188,10 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			//     覆盖（Store(nil)），因为 OpenAI 上游对该帧实际不传
 			//     service_tier 时按 default 处理，billing 应如实反映。
 			if policyErr == nil && blocked == nil && isResponseCreate {
+				if capturedGuardianPin != nil {
+					thread := openAIGuardianSourceThread(c, rawFrame)
+					guardianSourceThread.Store(&thread)
+				}
 				usageMeta.updateFromResponseCreate(out, model, requestModelForThisFrame)
 				_, actualModel := usageMeta.turnModels(requestModelForThisFrame)
 				SetOpsUpstreamModel(c, actualModel)
@@ -1333,8 +1368,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				if msgType != coderws.MessageText {
 					return nil
 				}
-				eventType, _, _ := parseOpenAIWSEventEnvelope(payload)
+				eventType, _, responseField := parseOpenAIWSEventEnvelope(payload)
 				if eventType == "response.created" {
+					if thread := guardianSourceThread.Load(); thread != nil {
+						s.bindOpenAIGuardianParentRouting(c, account, capturedGuardianPin, eventType, responseField.Get("id").String(), *thread)
+					}
 					failureAccountSideEffectsApplied = false
 				}
 				if (eventType == "error" || eventType == "response.failed") && markOpenAIWSV2PassthroughCyberPolicy(c, payload) {

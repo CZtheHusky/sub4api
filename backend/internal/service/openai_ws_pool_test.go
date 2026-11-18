@@ -797,6 +797,57 @@ func TestOpenAIWSConnPool_AcquireReusesOnlyMatchingBetaFeatures(t *testing.T) {
 	require.Equal(t, 2, dialer.DialCount())
 }
 
+func TestOpenAIWSConnPool_AcquireSeparatesGuardianHandshakeLineage(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Gateway.OpenAIWS.MaxConnsPerAccount = 8
+	cfg.Gateway.OpenAIWS.MaxIdlePerAccount = 8
+	pool := newOpenAIWSConnPool(cfg)
+	t.Cleanup(pool.Close)
+	dialer := &openAIWSCountingDialer{}
+	pool.setClientDialerForTest(dialer)
+	req := openAIWSAcquireRequest{
+		Account: &Account{ID: 132, Platform: PlatformOpenAI, Type: AccountTypeOAuth},
+		WSURL:   "wss://chatgpt.com/backend-api/codex/responses",
+		Headers: make(http.Header),
+	}
+	connID := func() string {
+		lease, err := pool.Acquire(context.Background(), req)
+		require.NoError(t, err)
+		defer lease.Release()
+		return lease.ConnID()
+	}
+
+	ordinary := connID()
+	req.Headers.Set(openAISubagentHeader, "review")
+	req.Headers.Set(codexParentThreadIDHeader, "parent-a")
+	req.Headers.Set("session-id", "scoped-reviewer")
+	req.Headers.Set("thread-id", "reviewer-a")
+	reviewer := connID()
+	require.NotEqual(t, ordinary, reviewer, "a normal handshake cannot carry the reviewer headers")
+	require.Equal(t, reviewer, connID(), "matching reviewer handshakes can reuse the socket")
+
+	req.Headers.Set(codexParentThreadIDHeader, "parent-b")
+	otherParent := connID()
+	require.NotEqual(t, reviewer, otherParent, "a new parent needs its own handshake")
+	req.Headers.Set("session-id", "other-scoped-reviewer")
+	otherSession := connID()
+	require.NotEqual(t, otherParent, otherSession, "a different caller session cannot reuse the reviewer's connection")
+	req.Headers.Set("thread-id", "reviewer-b")
+	require.NotEqual(t, otherSession, connID(), "reviewer threads may share a converged session and parent")
+
+	req.Headers.Del(codexParentThreadIDHeader)
+	noParent := connID()
+	req.Headers.Set("thread-id", "reviewer-c")
+	otherNoParent := connID()
+	require.NotEqual(t, noParent, otherNoParent, "reviewers with no parent still require matching threads")
+	req.Headers.Set(openAIWSTurnMetadataHeader, `{"subagent_kind":"guardian"}`)
+	require.NotEqual(t, otherNoParent, connID(), "conflicting handshake role signals must not collapse even without a parent")
+	req.Headers.Del(openAIWSTurnMetadataHeader)
+	req.Headers.Del(openAISubagentHeader)
+	require.Equal(t, ordinary, connID(), "ordinary requests retain existing pooling")
+	require.Equal(t, 8, dialer.DialCount())
+}
+
 func activeCodexFingerprintPoolAccountForTest(id int64) *Account {
 	return &Account{
 		ID:       id,

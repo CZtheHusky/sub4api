@@ -57,8 +57,8 @@ const (
 	openAIUpstreamEndpointContextKey   = "openai_actual_upstream_endpoint"
 	// Built-in identity tracks the locally tested protocol target. A version
 	// string alone does not establish server-side capacity priority.
-	// https://github.com/openai/codex/releases/tag/rust-v0.164.0
-	codexCLIVersion = "0.164.0"
+	// https://github.com/openai/codex/releases/tag/rust-v0.166.0
+	codexCLIVersion = "0.166.0"
 	// Codex 限额快照仅用于后台展示/诊断，不需要每个成功请求都立即落库。
 	openAICodexSnapshotPersistMinInterval = 30 * time.Second
 	// 配额自动暂停时，超过该时长仍未刷新的 used% 快照视为陈旧，不再据此暂停账号。
@@ -495,6 +495,7 @@ type OpenAIGatewayService struct {
 	openaiScheduler                OpenAIAccountScheduler
 	openaiWSPassthroughDialer      openAIWSClientDialer
 	openaiWSSessionPreemptions     openAIWSSessionPreemptRegistry
+	openaiGuardianRouting          openAIGuardianRoutingStore
 	openaiAccountStats             *openAIAccountRuntimeStats
 	openaiModelTransient           *openAIAccountModelTransientState
 	openaiProxyStreamCircuit       *openAIProxyStreamCircuit

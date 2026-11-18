@@ -864,9 +864,10 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		projectCodexOutboundHeaders(wsHeaders, true)
 	}
 	baseAcquireReq := openAIWSAcquireRequest{
-		Account: account,
-		WSURL:   wsURL,
-		Headers: wsHeaders,
+		Account:     account,
+		WSURL:       wsURL,
+		Headers:     wsHeaders,
+		GuardianPin: s.openAIGuardianReviewerRouting(ctx, c, account, wsURL, wsHeaders, gjson.GetBytes(firstPayload.payloadRaw, "client_metadata.parent_response_id").String()),
 		HeadersFactory: func(factoryCtx context.Context, headers http.Header) (http.Header, error) {
 			return s.refreshOpenAIWSAuthHeaders(factoryCtx, account, headers)
 		},
@@ -877,6 +878,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			return ""
 		}(),
 		ForceNewConn: false,
+	}
+	if baseAcquireReq.GuardianPin != nil {
+		baseAcquireReq.Headers.Del(openAICodexRoutingHintHeader)
 	}
 	pool := s.getOpenAIWSConnPool()
 	if pool == nil {
@@ -1058,7 +1062,15 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		return nil
 	}
 	var rejectedFieldRetryState *openAIResponsesRejectedFieldRetryState
-	sendAndRelay := func(turn int, lease *openAIWSConnLease, strict bool, payload []byte, payloadBytes int, originalModel string, imageBillingModel string, imageSizeTier string, imageInputSize string, requestedReasoningEffort *string) (*OpenAIForwardResult, error) {
+	sendAndRelay := func(turn int, lease *openAIWSConnLease, strict bool, payload, rawClientPayload []byte, payloadBytes int, originalModel string, imageBillingModel string, imageSizeTier string, imageInputSize string, requestedReasoningEffort *string) (*OpenAIForwardResult, error) {
+		if baseAcquireReq.GuardianPin != nil {
+			var tierErr error
+			payload, tierErr = sjson.DeleteBytes(payload, "service_tier")
+			if tierErr != nil {
+				return nil, tierErr
+			}
+			payloadBytes = len(payload)
+		}
 		responseModelObserver := &upstreamResponseModelObserver{}
 		if lease == nil {
 			return nil, errors.New("upstream websocket lease is nil")
@@ -1137,7 +1149,10 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				upstreamMessage = normalized
 			}
 
-			eventType, eventResponseID, _ := parseOpenAIWSEventEnvelope(upstreamMessage)
+			eventType, eventResponseID, responseField := parseOpenAIWSEventEnvelope(upstreamMessage)
+			if lease.conn.guardianPin != nil && eventType == "response.created" {
+				s.bindOpenAIGuardianParentRouting(c, account, lease.conn.guardianPin, eventType, responseField.Get("id").String(), openAIGuardianSourceThread(c, rawClientPayload))
+			}
 			responseModelObserver.ObserveOpenAI(upstreamMessage, eventType)
 			if responseID == "" && eventResponseID != "" {
 				responseID = eventResponseID
@@ -1938,7 +1953,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			)
 		}
 
-		result, relayErr := sendAndRelay(turn, sessionLease, forcePreferredConn && !canMigrate, currentPayload, currentPayloadBytes, currentOriginalModel, currentImageBillingModel, currentImageSizeTier, currentImageInputSize, currentRequestedReasoningEffort)
+		result, relayErr := sendAndRelay(turn, sessionLease, forcePreferredConn && !canMigrate, currentPayload, currentClientPayload, currentPayloadBytes, currentOriginalModel, currentImageBillingModel, currentImageSizeTier, currentImageInputSize, currentRequestedReasoningEffort)
 		if relayErr != nil {
 			lastTurnClean = false
 			if isOpenAIWSSessionPreempted(ctx) {
@@ -2075,6 +2090,17 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 		}
 		setOpenAICodexRoutingHint(baseAcquireReq.Headers, account, nextRoutingFields[0].String(), nextRoutingFields[1].String())
+		// Each response.create can refer to a different parent. A live
+		// upstream socket cannot change the routing pin from its handshake.
+		nextAffinity := WithOpenAIGuardianParentAffinity(context.Background(), c, nextPayload.rawForHash, nextPayload.originalModel)
+		nextPin := s.openAIGuardianReviewerRouting(nextAffinity, c, account, wsURL, baseAcquireReq.Headers, gjson.GetBytes(nextPayload.payloadRaw, "client_metadata.parent_response_id").String())
+		if nextPin != baseAcquireReq.GuardianPin {
+			resetSessionLease(false)
+			baseAcquireReq.GuardianPin = nextPin
+		}
+		if nextPin != nil {
+			baseAcquireReq.Headers.Del(openAICodexRoutingHintHeader)
+		}
 		if nextPayload.previousResponseID != "" {
 			expectedPrev := strings.TrimSpace(lastTurnResponseID)
 			chainedFromLast := expectedPrev != "" && nextPayload.previousResponseID == expectedPrev

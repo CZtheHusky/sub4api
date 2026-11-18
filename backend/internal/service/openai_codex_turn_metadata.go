@@ -22,11 +22,12 @@ import (
 // Turn metadata is also used as an HTTP header, including when carried in WS JSON.
 
 // codexTurnMetadataKeyOrder 复刻官方 CodexTurnMetadataPayload 的 serde 字段顺序
-// （codex-rs/core/src/responses_metadata.rs:544-601，全部 skip_serializing_if=none）。
+// （rust-v0.166.0 的 codex-rs/core/src/responses_metadata.rs，全部 skip_serializing_if=none）。
 // serde 按 struct 声明顺序序列化，未知键走 #[serde(flatten)] 的 BTreeMap<String,String>
 // （字典序、排在末尾）。Go map 的 json.Marshal 恒为字母序，与官方线序不一致，
 // 上游可逐字节比对——必须显式复刻。
 var codexTurnMetadataKeyOrder = [...]string{
+	"guardian_recorded_items",
 	"installation_id",
 	"session_id",
 	"thread_id",

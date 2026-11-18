@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,57 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCodexGuardianRoutingPinCookieScope(t *testing.T) {
+	const target = "wss://chatgpt.com/backend-api/codex/responses"
+	account := &Account{ID: 5, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	headers := http.Header{"Authorization": {"Bearer token"}}
+	tests := []struct {
+		name    string
+		cookies []string
+		want    string
+	}{
+		{"reject ambiguous", []string{"__cflb=first", "__cflb=last", "__oailb=valid"}, ""},
+		{"reject oversized", []string{"__oailb=valid", "__cflb=" + strings.Repeat("x", 8192)}, ""},
+		{"ignore other cookies", []string{"session=private"}, ""},
+		{"honor path and domain", []string{"__cflb=edge; Path=/other", "__oailb=foreign; Domain=example.test"}, ""},
+		{"honor expiry", []string{"__cflb=expired; Max-Age=0", "__oailb=live; Secure"}, "__oailb=live"},
+		{"stable order at equal paths", []string{"__cflb=edge; Secure", "__oailb=shard; Secure"}, "__oailb=shard; __cflb=edge"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			pin := captureOpenAIGuardianRoutingPin(account, target, headers, http.Header{"Set-Cookie": tc.cookies})
+			out := headers.Clone()
+			pin.apply(target, out)
+			require.Equal(t, tc.want, out.Get("Cookie"))
+		})
+	}
+
+	pin := captureOpenAIGuardianRoutingPin(account, target, headers, http.Header{"Set-Cookie": {"__oailb=shard; Secure"}})
+	require.NotNil(t, pin)
+	for _, destination := range []string{
+		"ws://chatgpt.com/backend-api/codex/responses",
+		"wss://api.openai.com/backend-api/codex/responses",
+		"wss://chat.openai.com/backend-api/codex/responses",
+		"wss://sub.chatgpt.com/backend-api/codex/responses",
+		"wss://chatgpt.com:444/backend-api/codex/responses",
+		"wss://chatgpt.com/backend-api/other",
+	} {
+		out := headers.Clone()
+		pin.apply(destination, out)
+		require.Empty(t, out.Get("Cookie"), destination)
+	}
+	out := headers.Clone()
+	pin.apply("wss://chatgpt.com:443/backend-api/codex/responses", out)
+	require.Equal(t, "__oailb=shard", out.Get("Cookie"), "an explicit default port is still the same origin")
+
+	// Use the jar's deletion semantics to simulate the cookie no longer
+	// being live at redial time without making the test wait for a clock.
+	pin.jar.SetCookies(pin.endpoint, []*http.Cookie{{Name: "__oailb", MaxAge: -1}})
+	out = headers.Clone()
+	pin.apply(target, out)
+	require.Empty(t, out.Get("Cookie"), "dialing must recheck expiration rather than replay prebuilt headers")
+}
 
 type guardianAffinityGroupRepo struct {
 	GroupRepository

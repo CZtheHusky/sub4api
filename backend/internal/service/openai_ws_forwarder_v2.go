@@ -238,10 +238,17 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	acquireCtx, acquireCancel := context.WithTimeout(ctx, s.openAIWSAcquireTimeout())
 	defer acquireCancel()
 
+	clientMetadata, _ = payload["client_metadata"].(map[string]any)
+	guardianPin := s.openAIGuardianReviewerRouting(ctx, c, account, wsURL, wsHeaders, openAIWSPayloadString(clientMetadata, "parent_response_id"))
+	if guardianPin != nil {
+		wsHeaders.Del(openAICodexRoutingHintHeader)
+		delete(payload, "service_tier")
+	}
 	acquireRequest := openAIWSAcquireRequest{
-		Account: account,
-		WSURL:   wsURL,
-		Headers: wsHeaders,
+		Account:     account,
+		WSURL:       wsURL,
+		Headers:     wsHeaders,
+		GuardianPin: guardianPin,
 		HeadersFactory: func(factoryCtx context.Context, headers http.Header) (http.Header, error) {
 			return s.refreshOpenAIWSAuthHeaders(factoryCtx, account, headers)
 		},
@@ -676,6 +683,13 @@ readLoop:
 		}
 
 		eventType, eventResponseID, responseField := parseOpenAIWSEventEnvelope(message)
+		if lease.conn.guardianPin != nil && eventType == "response.created" {
+			sourceThread, available := ctx.Value(openAIGuardianSourceThreadKey{}).(string)
+			if !available {
+				sourceThread = openAIGuardianSourceThread(c, nil)
+			}
+			s.bindOpenAIGuardianParentRouting(c, account, lease.conn.guardianPin, eventType, responseField.Get("id").String(), sourceThread)
+		}
 		if eventType == "" {
 			continue
 		}

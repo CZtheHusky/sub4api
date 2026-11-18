@@ -70,9 +70,10 @@ func (e *openAIWSDialError) Unwrap() error {
 }
 
 type openAIWSAcquireRequest struct {
-	Account *Account
-	WSURL   string
-	Headers http.Header
+	Account     *Account
+	WSURL       string
+	Headers     http.Header
+	GuardianPin *openAIGuardianRoutingPin
 	// HeadersFactory is evaluated inside dialConn. It exists so credentials
 	// whose authorization is per-dial (Agent Identity) are never cached in
 	// lastAcquire or delayed prewarm state.
@@ -88,13 +89,18 @@ type openAIWSAcquireRequest struct {
 }
 
 type openAIWSHandshakeCompatibilityKey struct {
-	betaFeatures        string
-	codexInstallationID string
-	sessionIDHyphen     string
-	sessionIDUnderscore string
-	threadID            string
-	clientRequestID     string
-	codexWindowID       string
+	betaFeatures         string
+	guardianPin          *openAIGuardianRoutingPin
+	guardianSubagent     string
+	guardianMetaSubagent string
+	guardianParent       string
+	guardianMetaParent   string
+	codexInstallationID  string
+	sessionIDHyphen      string
+	sessionIDUnderscore  string
+	threadID             string
+	clientRequestID      string
+	codexWindowID        string
 }
 
 type openAIWSConnLease struct {
@@ -288,6 +294,7 @@ type openAIWSConn struct {
 
 	handshakeHeaders       http.Header
 	handshakeCompatibility openAIWSHandshakeCompatibilityKey
+	guardianPin            *openAIGuardianRoutingPin
 	routingAffinity        string
 
 	leaseCh   chan struct{}
@@ -1174,6 +1181,7 @@ func (p *openAIWSConnPool) acquire(ctx context.Context, req openAIWSAcquireReque
 retryAcquire:
 	accountID := req.Account.ID
 	compatibility := normalizeOpenAIWSHandshakeCompatibility(req.Account, req.Headers)
+	compatibility.guardianPin = req.GuardianPin
 	routingAffinity := normalizeOpenAIWSRoutingAffinity(req.Headers)
 	effectiveMaxConns := p.effectiveMaxConnsByAccount(req.Account)
 	if effectiveMaxConns <= 0 {
@@ -1563,7 +1571,9 @@ func (p *openAIWSConnPool) recordConnPickDuration(duration time.Duration) {
 }
 
 func (p *openAIWSConnPool) recordLastSuccessfulAcquire(accountID int64, generation uint64, req openAIWSAcquireRequest) {
-	if p == nil || accountID <= 0 {
+	// Only a reviewer turn may spend a parent routing pin. Account-level
+	// background prewarming has no authenticated reviewer turn.
+	if p == nil || accountID <= 0 || req.GuardianPin != nil {
 		return
 	}
 	ap, ok := p.getAccountPool(accountID)
@@ -2158,6 +2168,7 @@ func (p *openAIWSConnPool) dialConn(ctx context.Context, req openAIWSAcquireRequ
 			return nil, err
 		}
 	}
+	req.GuardianPin.apply(req.WSURL, headers)
 	sentHeaders := cloneHeader(headers)
 	conn, status, handshakeHeaders, err := p.clientDialer.Dial(ctx, req.WSURL, headers, req.ProxyURL)
 	if req.ObserveHandshake != nil {
@@ -2189,6 +2200,10 @@ func (p *openAIWSConnPool) dialConn(ctx context.Context, req openAIWSAcquireRequ
 	evict := func() { p.evictConn(accountID, id) }
 	pooledConn.onPeerClosed.Store(&evict)
 	pooledConn.handshakeCompatibility = normalizeOpenAIWSHandshakeCompatibility(req.Account, req.Headers)
+	if req.GuardianPin != nil && req.GuardianPin.credential == openAIGuardianRoutingCredential(sentHeaders) {
+		pooledConn.handshakeCompatibility.guardianPin = req.GuardianPin
+	}
+	pooledConn.guardianPin = captureOpenAIGuardianRoutingPin(req.Account, req.WSURL, sentHeaders, handshakeHeaders)
 	pooledConn.routingAffinity = normalizeOpenAIWSRoutingAffinity(req.Headers)
 	return pooledConn, nil
 }
@@ -2369,6 +2384,7 @@ func cloneOpenAIWSAcquireRequestPtr(req *openAIWSAcquireRequest) *openAIWSAcquir
 func sameOpenAIWSPrewarmTarget(a, b openAIWSAcquireRequest) bool {
 	return stringsTrim(a.WSURL) == stringsTrim(b.WSURL) &&
 		stringsTrim(a.ProxyURL) == stringsTrim(b.ProxyURL) &&
+		a.GuardianPin == b.GuardianPin &&
 		normalizeOpenAIWSHandshakeCompatibility(a.Account, a.Headers) == normalizeOpenAIWSHandshakeCompatibility(b.Account, b.Headers)
 }
 
@@ -2400,6 +2416,23 @@ func normalizeOpenAIWSBetaFeatures(headers http.Header) string {
 func normalizeOpenAIWSHandshakeCompatibility(account *Account, headers http.Header) openAIWSHandshakeCompatibilityKey {
 	key := openAIWSHandshakeCompatibilityKey{
 		betaFeatures: normalizeOpenAIWSBetaFeatures(headers),
+	}
+	if account != nil && account.UsesOpenAICodexProtocol() {
+		subagent := normalizeOpenAIWSStableIdentityHeader(headers, openAISubagentHeader)
+		metadata := headers.Get(openAIWSTurnMetadataHeader)
+		metadataSubagent := ""
+		if strings.Contains(metadata, `"subagent_kind"`) {
+			metadataSubagent = codexSubagentKindFromMetadata(metadata)
+		}
+		// A reused socket cannot send a new upgrade handshake for a different reviewer.
+		if hasUnambiguousOpenAICodexReviewSubagent(subagent) || hasUnambiguousOpenAICodexReviewSubagent(metadataSubagent) {
+			key.guardianSubagent = subagent
+			key.guardianMetaSubagent = metadataSubagent
+			key.guardianParent = normalizeOpenAIWSStableIdentityHeader(headers, codexParentThreadIDHeader)
+			key.guardianMetaParent = codexParentThreadIDFromMetadata(metadata)
+			key.sessionIDHyphen = normalizeOpenAIWSStableIdentityHeader(headers, "session-id")
+			key.threadID = normalizeOpenAIWSStableIdentityHeader(headers, "thread-id")
+		}
 	}
 	mode := activeCodexFingerprintMode(account)
 	if mode == codexFingerprintOff {

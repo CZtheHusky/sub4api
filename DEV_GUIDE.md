@@ -128,6 +128,8 @@ cd frontend && pnpm install
 
 ### OpenAI / Codex 协议兼容性
 
+当前网关的内置 Codex CLI 版本为 `0.166.0`。手工版本设置与已同步值仍优先。审核请求提供 `guardian_recorded_items` 时，HTTP 和 WS 出站 turn metadata 将它放在首位。WS 池按可见审核角色、父线程、session 和 thread 判断连接能否复用。同一网关进程在父 WS 收到 `response.created` 后绑定上游握手返回的 `__oailb` 和 `__cflb`。后续 reviewer WS 仅在父线程、响应、调用方、账号、凭据及目的地匹配时使用该路由。
+
 公共 OpenAI API（API key）与 ChatGPT Codex 后端（OAuth/PAT）不是同一契约。
 行为对照基线为 `openai/codex` 提交 `1fb5158b3496a05abb89fb992d45737a02511d47`；
 ccodex README 仅用于发现差异，不能替代官方源码。主要依据是

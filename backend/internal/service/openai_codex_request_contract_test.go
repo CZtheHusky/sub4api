@@ -152,10 +152,24 @@ func TestCodexRequestMetadataFillsMissingNativeIdentity(t *testing.T) {
 	require.NotEmpty(t, gjson.GetBytes(next, "client_metadata.thread_id").String())
 	metadata := gjson.GetBytes(next, "client_metadata.x-codex-turn-metadata").String()
 	require.Equal(t, "turn", gjson.Get(metadata, "request_kind").String())
+	require.False(t, gjson.Get(metadata, "guardian_recorded_items").Exists(), "normal turns must not advertise recorded reviewer items")
 	require.Positive(t, gjson.Get(metadata, "turn_started_at_unix_ms").Int())
 	require.NotEmpty(t, headers.Get("session-id"))
 	require.NotEmpty(t, headers.Get("thread-id"))
 	require.Equal(t, headers.Get("thread-id"), headers.Get("x-client-request-id"))
+}
+
+func TestCodexRequestMetadataPreservesGuardianRecordedItemsOrder(t *testing.T) {
+	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	body := []byte(`{"client_metadata":{"x-codex-turn-metadata":"{\"session_id\":\"parent\",\"guardian_recorded_items\":true,\"subagent_kind\":\"guardian\"}"}}`)
+	headers := http.Header{}
+	next, changed, err := normalizeCodexRequestMetadata(body, headers, account, false)
+	require.NoError(t, err)
+	require.True(t, changed)
+	metadata := gjson.GetBytes(next, "client_metadata.x-codex-turn-metadata").String()
+	require.True(t, strings.HasPrefix(metadata, `{"guardian_recorded_items":true,"installation_id":`), metadata)
+	require.Equal(t, metadata, headers.Get(openAIWSTurnMetadataHeader))
+	require.Equal(t, "guardian", gjson.Get(metadata, "subagent_kind").String())
 }
 
 func TestPromoteOpenAILegacyCompactToNativeResponses(t *testing.T) {
